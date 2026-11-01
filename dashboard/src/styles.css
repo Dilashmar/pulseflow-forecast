@@ -971,8 +971,7 @@ tr.selected > :first-child {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--space-4);
-  max-width: 960px;
-  margin: 0 auto var(--space-4);
+  margin: 0 0 var(--space-4);
 }
 
 .column-chart::before {
@@ -1019,7 +1018,7 @@ tr.selected > :first-child {
 
 .column-bar {
   display: block;
-  width: 64px;
+  width: min(140px, 70%);
   opacity: 0.55;
 }
 
@@ -1053,8 +1052,6 @@ tr.selected > :first-child {
 
 /* The selected column's deals. */
 .change-list {
-  max-width: 960px;
-  margin: 0 auto;
   border-top: 1px solid var(--border);
 }
 
@@ -1214,7 +1211,6 @@ tr.selected > :first-child {
 }
 
 .issue-list {
-  max-width: 880px;
   margin: 0;
   padding: var(--space-1) 0 var(--space-2);
   list-style: none;
@@ -1271,24 +1267,40 @@ tr.selected > :first-child {
   color: var(--label);
 }
 
+/* An open issue: the title row stays highlighted, its records sit in a panel under it. */
+.issue-button[aria-expanded="true"] {
+  background: var(--row-hover);
+}
+
 .record-table {
-  width: calc(100% - 56px);
-  margin: 0 var(--space-4) var(--space-3) 40px;
-  border-collapse: collapse;
-  font-size: 13px;
+  width: calc(100% - 40px - var(--space-4));
+  margin: var(--space-2) var(--space-4) var(--space-4) 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-alt);
 }
 
 .record-table th {
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
   font-weight: 600;
   color: var(--label);
   text-align: left;
 }
 
+.record-table th:first-child { width: 30%; }
+.record-table th:nth-child(2) { width: 30%; }
+
 .record-table td {
-  padding: var(--space-1) var(--space-2) var(--space-1) 0;
-  border-top: 1px solid #ecebea;
+  padding: var(--space-2) var(--space-3);
   vertical-align: top;
+}
+
+.record-table tr + tr td {
+  border-top: 1px solid #ecebea;
 }
 
 .record-table .row-link {
