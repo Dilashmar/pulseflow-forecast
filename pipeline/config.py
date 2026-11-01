@@ -10,6 +10,11 @@ FORECAST_QUARTER = "Q4-2026"
 # GPA weights in hundredths (0.20 / 0.20 / 0.60), so GPA x100 stays an exact integer.
 GPA_WEIGHTS = {"leadership": 20, "commercial": 20, "contractual": 60}
 
+# Dashboard what-if (SPEC 3.6): a promoted Longtail deal starts at these scores
+# (GPA 3.00 -> 50%); more Top deals than the limit is allowed but shows a warning.
+PROMOTE_SCORES = {"leadership": 3, "commercial": 3, "contractual": 3}
+TOP_DEAL_LIMIT = 8
+
 # Standard probability for each Salesforce stage (D11).
 STAGE_PROBABILITIES = {
     "Introduction": Decimal("0.20"),

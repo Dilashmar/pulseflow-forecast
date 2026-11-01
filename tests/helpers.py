@@ -8,6 +8,7 @@ from openpyxl import load_workbook
 
 def copy_fixtures(data_dir, dst_dir):
     """Copy all fixture files so a test can modify one without touching the originals."""
+    dst_dir.mkdir(parents=True, exist_ok=True)
     for path in data_dir.iterdir():
         if path.is_file():
             shutil.copy(path, dst_dir / path.name)

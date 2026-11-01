@@ -1,0 +1,786 @@
+{
+  "summary": {
+    "entries": 40,
+    "by_check": {
+      "D1": 2,
+      "D2": 1,
+      "D3": 10,
+      "D4": 4,
+      "D5": 1,
+      "D6": 1,
+      "D7": 7,
+      "D8": 2,
+      "D9": 4,
+      "D10": 5,
+      "D13": 3
+    },
+    "by_kind": {
+      "Decision": 6,
+      "Fix": 25,
+      "Note": 9
+    },
+    "total_impact_abs": 5058900,
+    "total_impact_net": 4075500,
+    "total_at_risk": 812000
+  },
+  "entries": [
+    {
+      "check": "D1",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 17,
+          "deal_id": "006PF000001L014YAC",
+          "customer": "Cascadia Crest Medical"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 18,
+          "deal_id": "006PF000001L014YAC",
+          "customer": "Cascadia Crest Medical"
+        }
+      ],
+      "what_was_wrong": "Row 18 is an exact copy of row 17",
+      "resolution": "Kept row 17; dropped the copy",
+      "impact": 320000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D2",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 10,
+          "deal_id": "006PF000001L008YAC",
+          "customer": "Caledonia General Health"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 11,
+          "deal_id": "006PF000001L008YAC",
+          "customer": "Caledonia General Health"
+        }
+      ],
+      "what_was_wrong": "2 versions of deal 006PF000001L008YAC (rows 10, 11) with different stage, stage_probability, amount_raw, annual_acv, days_in_stage",
+      "resolution": "Kept row 11 (lowest Days_In_Stage, 2: most recent update); dropped the other version(s)",
+      "impact": 240000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D1",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 3,
+          "deal_id": "HS-9002",
+          "customer": "Solaris Transitions Network"
+        },
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 4,
+          "deal_id": "HS-9002",
+          "customer": "Solaris Transitions Network"
+        }
+      ],
+      "what_was_wrong": "Row 4 is an exact copy of row 3",
+      "resolution": "Kept row 3; dropped the copy",
+      "impact": 192000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 4,
+          "deal_id": "006PF000001L002",
+          "customer": "Obsidian Health Network"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L002 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 6,
+          "deal_id": "006PF000001L008",
+          "customer": "Caledonia General Health"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L008 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 9,
+          "deal_id": "006PF000001L011",
+          "customer": "Polaris Community Hospitals"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L011 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 14,
+          "deal_id": "006PF000001L016",
+          "customer": "Briarwood Health Partners"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L016 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 19,
+          "deal_id": "006PF000001T002",
+          "customer": "Solaris Medical System (FKA Solaris Health Group)"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001T002 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 21,
+          "deal_id": "006PF000001T004",
+          "customer": "Zephyr Valley System (AKA Zephyr Regional Medical Group)"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001T004 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D13",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": null,
+          "deal_id": null,
+          "customer": null
+        }
+      ],
+      "what_was_wrong": "HubSpot has no Region column",
+      "resolution": "Left blank for all rows; no value invented",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D13",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": null,
+          "deal_id": null,
+          "customer": null
+        }
+      ],
+      "what_was_wrong": "HubSpot has no Created_Date column",
+      "resolution": "Left blank for all rows; no value invented",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D13",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": null,
+          "deal_id": null,
+          "customer": null
+        }
+      ],
+      "what_was_wrong": "HubSpot has no Days_In_Stage column",
+      "resolution": "Left blank for all rows; no value invented",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D10",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 33,
+          "deal_id": "006PF000001X001YAC",
+          "customer": "Fjordland Peninsula Health"
+        }
+      ],
+      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
+      "resolution": "Left out of the Q4-2026 forecast",
+      "impact": 240000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D10",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 34,
+          "deal_id": "006PF000001X002YAC",
+          "customer": "Timberline Valley Medical"
+        }
+      ],
+      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
+      "resolution": "Left out of the Q4-2026 forecast",
+      "impact": 450000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D10",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 35,
+          "deal_id": "006PF000001X003YAC",
+          "customer": "Greystone Health Cooperative"
+        }
+      ],
+      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
+      "resolution": "Left out of the Q4-2026 forecast",
+      "impact": 50000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D8",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 37,
+          "deal_id": "006PF000001X005YAC",
+          "customer": "Coral Reef Medical Group"
+        }
+      ],
+      "what_was_wrong": "Closed Lost but stage probability is 40%",
+      "resolution": "Counted as $0 and left out of the forecast",
+      "impact": 260000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D10",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 13,
+          "deal_id": "HS-9011",
+          "customer": "Valkyrie Senior Care"
+        }
+      ],
+      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
+      "resolution": "Left out of the Q4-2026 forecast",
+      "impact": 72000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D10",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 14,
+          "deal_id": "HS-9012",
+          "customer": "Solstice Post-Acute"
+        }
+      ],
+      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
+      "resolution": "Left out of the Q4-2026 forecast",
+      "impact": 26000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D8",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 15,
+          "deal_id": "HS-9013",
+          "customer": "Celestial Skilled Nursing"
+        }
+      ],
+      "what_was_wrong": "Closed Lost but stage probability is 30%",
+      "resolution": "Counted as $0 and left out of the forecast",
+      "impact": 43200,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D6",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 32,
+          "deal_id": "006PF000001M001YAC",
+          "customer": "Aethelgard Post-Acute Care"
+        },
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 2,
+          "deal_id": "HS-9001",
+          "customer": "Aethelgard Post-Acute Care"
+        }
+      ],
+      "what_was_wrong": "Same deal in Salesforce (006PF000001M001YAC) and HubSpot (HS-9001): same customer, product, annual value $180,000 and close date 2026-11-15",
+      "resolution": "Counted once using the HubSpot record; Salesforce copy marked duplicate",
+      "impact": 144000,
+      "at_risk": null,
+      "reasoning": "Counting both would double-count one deal. HubSpot is used because it is the acquired CareBridge team's system; the Salesforce copy is not a new deal."
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 2,
+          "deal_id": "HS-9001",
+          "customer": "Aethelgard Post-Acute Care"
+        }
+      ],
+      "what_was_wrong": "Amount $15,000 is billed monthly",
+      "resolution": "Annual value = $15,000 x 12 = $180,000",
+      "impact": -132000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 3,
+          "deal_id": "HS-9002",
+          "customer": "Solaris Transitions Network"
+        }
+      ],
+      "what_was_wrong": "Amount $20,000 is billed monthly",
+      "resolution": "Annual value = $20,000 x 12 = $240,000",
+      "impact": -176000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 5,
+          "deal_id": "HS-9003",
+          "customer": "Ironwood Post-Acute Network"
+        }
+      ],
+      "what_was_wrong": "Amount $12,500 is billed monthly",
+      "resolution": "Annual value = $12,500 x 12 = $150,000",
+      "impact": -82500,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 6,
+          "deal_id": "HS-9004",
+          "customer": "Zephyr Valley Senior Care"
+        }
+      ],
+      "what_was_wrong": "Amount $10,000 is billed monthly",
+      "resolution": "Annual value = $10,000 x 12 = $120,000",
+      "impact": -66000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 7,
+          "deal_id": "HS-9005",
+          "customer": "Vanguard Rehab Centers"
+        }
+      ],
+      "what_was_wrong": "Amount $8,000 is billed monthly",
+      "resolution": "Annual value = $8,000 x 12 = $96,000",
+      "impact": -35200,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 13,
+          "deal_id": "HS-9011",
+          "customer": "Valkyrie Senior Care"
+        }
+      ],
+      "what_was_wrong": "Amount $15,000 is billed monthly",
+      "resolution": "Annual value = $15,000 x 12 = $180,000",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D7",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 15,
+          "deal_id": "HS-9013",
+          "customer": "Celestial Skilled Nursing"
+        }
+      ],
+      "what_was_wrong": "Amount $12,000 is billed monthly",
+      "resolution": "Annual value = $12,000 x 12 = $144,000",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D9",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 3,
+          "deal_id": "006PF000001L001YAC",
+          "customer": "Hyperion Health System"
+        }
+      ],
+      "what_was_wrong": "Close date 2026-10-05 is before 2026-10-15 but the deal is still open",
+      "resolution": "Kept in the forecast and flagged past due",
+      "impact": 0,
+      "at_risk": 360000,
+      "reasoning": "The deal hasn't been closed or moved, so it is still counted, but its value is at risk until the rep updates it."
+    },
+    {
+      "check": "D9",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 4,
+          "deal_id": "006PF000001L002YAC",
+          "customer": "Obsidian Health Network"
+        }
+      ],
+      "what_was_wrong": "Close date 2026-10-10 is before 2026-10-15 but the deal is still open",
+      "resolution": "Kept in the forecast and flagged past due",
+      "impact": 0,
+      "at_risk": 180000,
+      "reasoning": "The deal hasn't been closed or moved, so it is still counted, but its value is at risk until the rep updates it."
+    },
+    {
+      "check": "D9",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 5,
+          "deal_id": "006PF000001L003YAC",
+          "customer": "Valkyrie Regional Medical"
+        }
+      ],
+      "what_was_wrong": "Close date 2026-10-12 is before 2026-10-15 but the deal is still open",
+      "resolution": "Kept in the forecast and flagged past due",
+      "impact": 0,
+      "at_risk": 200000,
+      "reasoning": "The deal hasn't been closed or moved, so it is still counted, but its value is at risk until the rep updates it."
+    },
+    {
+      "check": "D9",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "4_carebridge_hubspot_export.csv",
+          "source_row": 6,
+          "deal_id": "HS-9004",
+          "customer": "Zephyr Valley Senior Care"
+        }
+      ],
+      "what_was_wrong": "Close date 2026-10-08 is before 2026-10-15 but the deal is still open",
+      "resolution": "Kept in the forecast and flagged past due",
+      "impact": 0,
+      "at_risk": 72000,
+      "reasoning": "The deal hasn't been closed or moved, so it is still counted, but its value is at risk until the rep updates it."
+    },
+    {
+      "check": "D3",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 5,
+          "deal_id": "006PF000001T001",
+          "customer": "Aethelgard Health"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 24,
+          "deal_id": "006PF000001T001YAC",
+          "customer": "Aethelgard Health System (AKA Aethelgard Regional Medical)"
+        }
+      ],
+      "what_was_wrong": "VP sheet ID 006PF000001T001 is the 15-character form of 006PF000001T001YAC",
+      "resolution": "Matched on the first 15 characters; scored as a Top deal",
+      "impact": 120000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 6,
+          "deal_id": "006PF000001T002",
+          "customer": "Solaris Medical"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 25,
+          "deal_id": "006PF000001T002YAC",
+          "customer": "Solaris Medical System (FKA Solaris Health Group)"
+        }
+      ],
+      "what_was_wrong": "VP sheet ID 006PF000001T002 is the 15-character form of 006PF000001T002YAC",
+      "resolution": "Matched on the first 15 characters; scored as a Top deal",
+      "impact": 150000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 7,
+          "deal_id": "006PF000001T003",
+          "customer": "Vanguard Meridian"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 26,
+          "deal_id": "006PF000001T003YAC",
+          "customer": "Vanguard Meridian Health Network"
+        }
+      ],
+      "what_was_wrong": "VP sheet ID 006PF000001T003 is the 15-character form of 006PF000001T003YAC",
+      "resolution": "Matched on the first 15 characters; scored as a Top deal",
+      "impact": 180000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 8,
+          "deal_id": "006PF000001T004",
+          "customer": "Zephyr Valley"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 27,
+          "deal_id": "006PF000001T004YAC",
+          "customer": "Zephyr Valley System (AKA Zephyr Regional Medical Group)"
+        }
+      ],
+      "what_was_wrong": "VP sheet ID 006PF000001T004 is the 15-character form of 006PF000001T004YAC",
+      "resolution": "Matched on the first 15 characters; scored as a Top deal",
+      "impact": 150000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D4",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 9,
+          "deal_id": null,
+          "customer": "Ironwood Clinical"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 28,
+          "deal_id": "006PF000001T005YAC",
+          "customer": "Ironwood Clinical Center & Health System"
+        }
+      ],
+      "what_was_wrong": "VP row has no Opportunity ID",
+      "resolution": "Matched by name, product and rep to 006PF000001T005YAC (Ironwood Clinical Center & Health System); scored as a Top deal",
+      "impact": 660000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D5",
+      "kind": "Decision",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 9,
+          "deal_id": null,
+          "customer": "Ironwood Clinical"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 28,
+          "deal_id": "006PF000001T005YAC",
+          "customer": "Ironwood Clinical Center & Health System"
+        }
+      ],
+      "what_was_wrong": "Sheet win probability 75% vs formula 50%",
+      "resolution": "Formula used by default ($1,100,000); the dashboard toggle applies the VP's number ($550,000 difference)",
+      "impact": 550000,
+      "at_risk": null,
+      "reasoning": "Every Top deal is scored by the same formula so the forecast is consistent; the VP's judgment is kept visible as an override the meeting can apply."
+    },
+    {
+      "check": "D4",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 10,
+          "deal_id": null,
+          "customer": "Borealis Health"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 29,
+          "deal_id": "006PF000001T006YAC",
+          "customer": "Borealis Health Alliance - Main Campus"
+        }
+      ],
+      "what_was_wrong": "VP row has no Opportunity ID",
+      "resolution": "Matched by name, product and rep to 006PF000001T006YAC (Borealis Health Alliance - Main Campus); scored as a Top deal",
+      "impact": 160000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D4",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 11,
+          "deal_id": null,
+          "customer": "Starlight Oncology"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 30,
+          "deal_id": "006PF000001T007YAC",
+          "customer": "Starlight Oncology & Cancer Network"
+        }
+      ],
+      "what_was_wrong": "VP row has no Opportunity ID",
+      "resolution": "Matched by name, product and rep to 006PF000001T007YAC (Starlight Oncology & Cancer Network); scored as a Top deal",
+      "impact": 360000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D4",
+      "kind": "Fix",
+      "records": [
+        {
+          "source_file": "3_vp_deal_scorecard.xlsx",
+          "source_row": 12,
+          "deal_id": null,
+          "customer": "Halcyon Medical"
+        },
+        {
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 31,
+          "deal_id": "006PF000001T008YAC",
+          "customer": "Halcyon Medical Group (FKA Halcyon Health)"
+        }
+      ],
+      "what_was_wrong": "VP row has no Opportunity ID",
+      "resolution": "Matched by name, product and rep to 006PF000001T008YAC (Halcyon Medical Group (FKA Halcyon Health)); scored as a Top deal",
+      "impact": 200000,
+      "at_risk": null,
+      "reasoning": null
+    }
+  ]
+}
