@@ -4,6 +4,7 @@ import type { DealDetail } from "./dealDetail";
 import type { Pillar } from "./forecast";
 import { ScoreSelects } from "./ScoreSelects";
 import type { Deal } from "./types";
+import { BeforeAfter } from "./WhatChanged";
 
 interface DetailPanelProps {
   detail: DealDetail;
@@ -51,7 +52,11 @@ export function DetailPanel(props: DetailPanelProps) {
       <header className="detail-header">
         <div>
           <p className="detail-eyebrow">
-            <span className={`bucket bucket-${detail.isTop ? "top" : "longtail"}`}>{detail.isTop ? "Top" : "Longtail"}</span>
+            {detail.inForecast ? (
+              <span className={`bucket bucket-${detail.isTop ? "top" : "longtail"}`}>{detail.isTop ? "Top" : "Longtail"}</span>
+            ) : (
+              <span className="bucket bucket-excluded">Not in forecast</span>
+            )}
             {detail.edited && <span className="edited-badge">Edited</span>}
           </p>
           <h2>{name}</h2>
@@ -69,6 +74,8 @@ export function DetailPanel(props: DetailPanelProps) {
         </div>
       </header>
 
+      {detail.statusLine && <p className="status-line">{detail.statusLine}</p>}
+
       <dl className="detail-facts">
         <div><dt>Product</dt><dd>{deal.product}</dd></div>
         <div><dt>Rep</dt><dd>{deal.sales_rep ?? "—"}</dd></div>
@@ -79,27 +86,51 @@ export function DetailPanel(props: DetailPanelProps) {
       </dl>
 
       <section className="detail-section">
-        <h3>How the expected value is calculated</h3>
+        <h3>{detail.inForecast ? "How the expected value is calculated" : "Expected value"}</h3>
         {detail.scores && (
           <ScoreSelects deal={deal} scores={detail.scores} onChange={onScoreChange} variant="labeled" />
         )}
         <ol className="calc">
           {detail.gpaLine && <li>{detail.gpaLine}</li>}
-          <li>{detail.probabilityLine}</li>
+          {detail.probabilityLine && <li>{detail.probabilityLine}</li>}
           <li className="calc-result">{detail.expectedValueLine}</li>
         </ol>
         {detail.vpLine && <p className="vp-line">{detail.vpLine}</p>}
-        <div className="move-action">
-          <button
-            type="button"
-            className="button"
-            aria-describedby="move-action-note"
-            onClick={() => onMove(deal, detail.moveAction.kind)}
-          >
-            {detail.moveAction.label}
-          </button>
-          <p id="move-action-note" className="move-note">{detail.moveAction.note}</p>
-        </div>
+        {detail.moveAction && (
+          <div className="move-action">
+            <button
+              type="button"
+              className="button"
+              aria-describedby="move-action-note"
+              onClick={() => onMove(deal, detail.moveAction!.kind)}
+            >
+              {detail.moveAction.label}
+            </button>
+            <p id="move-action-note" className="move-note">{detail.moveAction.note}</p>
+          </div>
+        )}
+      </section>
+
+      <section className="detail-section">
+        <h3>This week</h3>
+        {detail.changes.length === 0 ? (
+          <p className="muted">
+            {deal.source === "Salesforce" ? "No change since last week." : "No prior-week file for HubSpot deals."}
+          </p>
+        ) : (
+          <ul className="week-changes">
+            {detail.changes.map((c) => (
+              <li key={c.key}>
+                <div className="week-change-head">
+                  <span className="week-change-category">{c.category}</span>
+                  <span className={`change-value tone-${c.tone}`}>{c.change}</span>
+                </div>
+                <BeforeAfter before={c.before} after={c.after} />
+                {c.acvNote && <span className="acv-note">{c.acvNote}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {detail.vpNotes && (

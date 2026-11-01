@@ -21,6 +21,7 @@ import type { ForecastFile } from "./types";
 const cents = (dollars: number) => Math.round(dollars * 100);
 const STARLIGHT = "006PF000001T007YAC";
 const IRONWOOD = "006PF000001T005YAC";
+const SLIPPED = "006PF000001X002YAC"; // Timberline: slipped to Q1-2027, not in the forecast
 const settings = forecast.settings;
 
 function deal(id: string) {
@@ -62,6 +63,27 @@ describe("baseline matches the pipeline's totals exactly, in cents", () => {
   });
 
   it("baseline total is $13,182,400", () => {
+    expect(computeTotals(forecast, BASELINE).total).toBe(cents(13_182_400));
+  });
+});
+
+// --- Deals not in the forecast (slipped, Closed Lost, D6 copies) -----------------
+
+describe("excluded deals are skipped, not an error", () => {
+  it("computeDeal gives $0 and no bucket", () => {
+    const timberline = computeDeal(deal(SLIPPED), BASELINE, settings);
+    expect(timberline.inForecast).toBe(false);
+    expect(timberline.bucket).toBeNull();
+    expect(timberline.evCents).toBe(0);
+    expect(timberline.scores).toBeNull();
+    expect(timberline.moved).toBeNull();
+  });
+
+  it("forecast.json has 9 excluded deals; totals are the same with or without them", () => {
+    const excluded = forecast.deals.filter((d) => !d.in_forecast);
+    expect(excluded).toHaveLength(9);
+    const withoutExcluded: ForecastFile = { ...forecast, deals: forecast.deals.filter((d) => d.in_forecast) };
+    expect(computeTotals(forecast, BASELINE)).toEqual(computeTotals(withoutExcluded, BASELINE));
     expect(computeTotals(forecast, BASELINE).total).toBe(cents(13_182_400));
   });
 });
@@ -246,6 +268,11 @@ describe("promote and demote", () => {
     expect(t.total).toBe(cents(13_182_400));
     expect(t.topCount).toBe(8);
     expect(isChanged(reset())).toBe(false);
+  });
+
+  it("excluded deals can't be promoted or demoted", () => {
+    expect(promote(BASELINE, deal(SLIPPED), settings)).toBe(BASELINE);
+    expect(demote(BASELINE, deal(SLIPPED))).toBe(BASELINE);
   });
 
   it("more than the Top deal limit (from settings) shows a warning", () => {

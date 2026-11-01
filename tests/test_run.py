@@ -113,6 +113,19 @@ def test_forecast_deals(written):
     assert by_id(deals, "HS-9005")["expected_value"] == 38400
 
 
+def test_excluded_deals_kept_with_reason_and_totals_unchanged(written):
+    # Slipped, Closed Lost and D6 copies stay in forecast.json (the dashboard shows
+    # them read-only) but add nothing: totals are the sum of the in-forecast deals.
+    data = written["forecast.json"]
+    excluded = [d for d in data["deals"] if not d["in_forecast"]]
+    assert len(excluded) == 9
+    assert all(d["exclusion_reason"] and d["bucket"] is None and d["expected_value"] == 0 for d in excluded)
+    assert by_id(excluded, "006PF000001X002YAC")["exclusion_reason"] == "Outside Q4-2026 (Q1-2027)"
+    assert by_id(excluded, "006PF000001M001YAC")["duplicate_of"] == "HS-9001"
+    in_forecast = sum(d["expected_value"] for d in data["deals"] if d["in_forecast"])
+    assert data["totals"]["formula"]["total"] == in_forecast == 13182400
+
+
 # --- audit_log.json -------------------------------------------------------------
 
 def test_audit_log(written):

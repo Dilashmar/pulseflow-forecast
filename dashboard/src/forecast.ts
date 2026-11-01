@@ -27,7 +27,8 @@ export type VpOverrideStatus = "none" | "available" | "applied" | "not_applied_e
 
 export interface DealResult {
   deal: Deal;
-  bucket: Bucket;
+  inForecast: boolean; // false: slipped, Closed Lost, a D6 copy... ($0, no bucket)
+  bucket: Bucket | null;
   productLine: string;
   scores: Scores | null; // Top deals only
   gpaX100: number | null;
@@ -95,15 +96,21 @@ export function pipelineScores(deal: Deal): Scores | null {
 }
 
 export function computeDeal(deal: Deal, scenario: Scenario, settings: Settings): DealResult {
-  if (deal.bucket === null) throw new Error(`${deal.deal_id} is not in the forecast`);
   const line = productLine(deal.product, settings);
+  if (deal.bucket === null) {
+    // Not in the forecast (the pipeline kept it with its reason): $0, and moves don't apply.
+    return {
+      deal, inForecast: false, bucket: null, productLine: line, scores: null, gpaX100: null,
+      probability: 0, evCents: 0, edited: false, vpOverride: "none", moved: null,
+    };
+  }
   const bucket = scenario.moves?.[deal.deal_id] ?? deal.bucket;
   const moved: Moved = bucket === deal.bucket ? null : bucket === "Top" ? "promoted" : "demoted";
 
   if (bucket === "Longtail") {
     // Longtail (or demoted from Top): its stage probability.
     return {
-      deal, bucket: "Longtail", productLine: line, scores: null, gpaX100: null,
+      deal, inForecast: true, bucket: "Longtail", productLine: line, scores: null, gpaX100: null,
       probability: deal.stage_probability,
       evCents: expectedValueCents(deal.annual_acv, deal.stage_probability),
       edited: false, vpOverride: "none", moved,
@@ -130,7 +137,7 @@ export function computeDeal(deal: Deal, scenario: Scenario, settings: Settings):
   const probability = vpOverride === "applied" ? deal.vp_win_probability! : formulaProbability;
 
   return {
-    deal, bucket: "Top", productLine: line, scores, gpaX100: x100, probability,
+    deal, inForecast: true, bucket: "Top", productLine: line, scores, gpaX100: x100, probability,
     evCents: expectedValueCents(deal.annual_acv, probability),
     edited, vpOverride, moved,
   };
@@ -143,7 +150,8 @@ export function forecastDeals(forecast: ForecastFile): Deal[] {
 }
 
 export function computeTotals(forecast: ForecastFile, scenario: Scenario): TotalsCents {
-  const results = forecastDeals(forecast).map((d) => computeDeal(d, scenario, forecast.settings));
+  // Every deal in forecast.json; excluded ones come back at $0 and are skipped here.
+  const results = forecast.deals.map((d) => computeDeal(d, scenario, forecast.settings)).filter((r) => r.inForecast);
   const sum = (rows: DealResult[]) => rows.reduce((total, r) => total + r.evCents, 0);
 
   const top = results.filter((r) => r.bucket === "Top");
@@ -190,6 +198,7 @@ export function setScore(scenario: Scenario, deal: Deal, pillar: Pillar, value: 
 
 /** Longtail -> Top at settings.promote_scores; or undo a demotion (back to the pipeline's scores). */
 export function promote(scenario: Scenario, deal: Deal, settings: Settings): Scenario {
+  if (deal.bucket === null) return scenario; // not in the forecast
   const moves = { ...scenario.moves };
   const edits = { ...scenario.edits };
   if (deal.bucket === "Top") {
@@ -204,6 +213,7 @@ export function promote(scenario: Scenario, deal: Deal, settings: Settings): Sce
 
 /** Top -> Longtail at its stage probability (score edits dropped); or undo a promotion. */
 export function demote(scenario: Scenario, deal: Deal): Scenario {
+  if (deal.bucket === null) return scenario; // not in the forecast
   const moves = { ...scenario.moves };
   const edits = { ...scenario.edits };
   if (deal.bucket === "Top") moves[deal.deal_id] = "Longtail";

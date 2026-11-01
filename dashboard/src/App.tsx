@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import { Banner } from "./Banner";
 import { bannerView } from "./bannerView";
-import { audit, forecast } from "./data";
+import { audit, forecast, weekOverWeek } from "./data";
 import { dealDetail } from "./dealDetail";
 import { dealRoomRows } from "./dealRoomRows";
 import { DealTable } from "./DealTable";
@@ -13,6 +13,11 @@ import {
 } from "./forecast";
 import { Sidebar, TABS, type Tab } from "./Sidebar";
 import type { Deal } from "./types";
+import { WhatChanged } from "./WhatChanged";
+import { whatChangedView } from "./whatChangedView";
+
+// Week over week doesn't change with the what-if scenario: work it out once.
+const changesView = whatChangedView(weekOverWeek);
 
 export function App() {
   // The what-if scenario: score edits and the VP override toggle. Everything on
@@ -42,7 +47,8 @@ export function App() {
   const view = bannerView(forecast, scenario);
   const rows = dealRoomRows(forecast, scenario);
   const shown = visibleRows(rows, filters, search, sort);
-  const selected = tab === "deal-room" ? rows.find((r) => r.dealId === selectedId) : undefined;
+  // Any deal in forecast.json can open the panel, including ones not in the forecast (read-only).
+  const selected = tab === "data-audit" ? undefined : forecast.deals.find((d) => d.deal_id === selectedId);
 
   const shellClasses = [
     "shell",
@@ -88,6 +94,8 @@ export function App() {
             filterCount={activeFilterCount(filters)}
             onClearFilters={() => setFilters(NO_FILTERS)}
           />
+        ) : tab === "what-changed" ? (
+          <WhatChanged view={changesView} selectedId={selectedId} onSelect={selectDeal} />
         ) : (
           <section className="card placeholder">
             <h2>{TABS.find((t) => t.key === tab)!.label}</h2>
@@ -98,7 +106,7 @@ export function App() {
 
       {selected && (
         <DetailPanel
-          detail={dealDetail(selected.deal, scenario, forecast, audit)}
+          detail={dealDetail(selected, scenario, forecast, audit, weekOverWeek)}
           onScoreChange={changeScore}
           onClose={closePanel}
           collapsed={panelCollapsed}

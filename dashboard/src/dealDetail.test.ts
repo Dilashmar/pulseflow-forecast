@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { audit, forecast } from "./data";
+import { audit, forecast, weekOverWeek } from "./data";
 import { dealDetail } from "./dealDetail";
 import { BASELINE, demote, promote, setScore, setVpOverride } from "./forecast";
 
 const deal = (id: string) => forecast.deals.find((d) => d.deal_id === id)!;
-const detail = (id: string, scenario = BASELINE) => dealDetail(deal(id), scenario, forecast, audit);
+const detail = (id: string, scenario = BASELINE) => dealDetail(deal(id), scenario, forecast, audit, weekOverWeek);
 
 describe("Top deal: GPA written out", () => {
   it("Ironwood baseline", () => {
@@ -133,7 +133,7 @@ describe("promote / move to Longtail in the panel", () => {
     expect(d.gpaLine).toBe("GPA = 0.20 × 3 + 0.20 × 3 + 0.60 × 3 = 3.00");
     expect(d.expectedValueLine).toBe("Expected value = $500K × 50% = $250K");
     expect(d.flags.map((f) => f.label)).toContain("Promoted");
-    expect(d.moveAction.kind).toBe("demote");
+    expect(d.moveAction?.kind).toBe("demote");
   });
 
   it("after demotion: stage probability and a Moved to Longtail flag", () => {
@@ -141,7 +141,49 @@ describe("promote / move to Longtail in the panel", () => {
     expect(d.isTop).toBe(false);
     expect(d.probabilityLine).toBe("20% win probability: the stage probability for Introduction");
     expect(d.flags.map((f) => f.label)).toContain("Moved to Longtail");
-    expect(d.moveAction.kind).toBe("promote");
-    expect(d.moveAction.note).toBe("Goes back to its VP scores 2 / 1 / 1 (GPA 1.20 → 10%)");
+    expect(d.moveAction?.kind).toBe("promote");
+    expect(d.moveAction?.note).toBe("Goes back to its VP scores 2 / 1 / 1 (GPA 1.20 → 10%)");
+  });
+});
+
+describe("deals not in the forecast: read-only", () => {
+  it("slipped: status line, $0, no scores or move button", () => {
+    const d = detail("006PF000001X002YAC"); // Timberline
+    expect(d.inForecast).toBe(false);
+    expect(d.statusLine).toBe("Not in Q4 forecast: slipped to Q1-2027");
+    expect(d.expectedValueLine).toBe("Expected value: $0 (not in forecast)");
+    expect([d.scores, d.gpaLine, d.probabilityLine, d.moveAction]).toEqual([null, null, null, null]);
+  });
+
+  it("its week-over-week change and audit entries", () => {
+    const d = detail("006PF000001X002YAC");
+    expect(d.changes.map((c) => [c.category, c.before, c.after, c.change])).toEqual([
+      ["Slipped out of Q4", "Q4-2026", "Q1-2027", "−$450K"],
+    ]);
+    expect(d.auditEntries.map((e) => e.check)).toEqual(["D10"]);
+  });
+
+  it("Closed Lost", () => {
+    expect(detail("006PF000001X004YAC").statusLine).toBe("Not in Q4 forecast: Closed Lost");
+  });
+
+  it("a Salesforce copy of a HubSpot deal (D6)", () => {
+    const d = detail("006PF000001M001YAC");
+    expect(d.statusLine).toBe("Not in Q4 forecast: copy of HubSpot deal HS-9001 (counted there)");
+    expect(d.auditEntries.map((e) => e.check)).toEqual(["D6"]);
+    expect(d.changes.map((c) => c.change)).toEqual(["$0 · already counted"]);
+  });
+
+  it("a HubSpot deal outside Q4 with no prior week to compare: closes in, not slipped", () => {
+    const d = detail("HS-9011");
+    expect(d.statusLine).toBe("Not in Q4 forecast: closes in Q1-2027");
+    expect(d.changes).toEqual([]);
+  });
+
+  it("deals in the forecast have no status line, and show their changes too", () => {
+    const d = detail("006PF000001L008YAC"); // Caledonia
+    expect(d.inForecast).toBe(true);
+    expect(d.statusLine).toBeNull();
+    expect(d.changes.map((c) => c.category)).toEqual(["Stage moves", "Amount changes"]);
   });
 });

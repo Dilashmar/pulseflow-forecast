@@ -53,7 +53,7 @@ export function dealRoomRows(forecast: ForecastFile, scenario: Scenario): DealRo
       dealId: deal.deal_id,
       deal,
       isTop: result.bucket === "Top",
-      bucket: result.bucket,
+      bucket: result.bucket!, // forecastDeals: every deal here has a bucket
       customer: deal.customer ?? BLANK,
       product: deal.product,
       salesRep: deal.sales_rep ?? BLANK,

@@ -1,5 +1,6 @@
 // The right-side detail panel for one deal: the GPA calculation written out,
-// each flag in plain words, and this deal's audit log entries. Display logic
+// each flag in plain words, this week's changes and this deal's audit log
+// entries. Deals not in the forecast are shown read-only. Display logic
 // only; every number comes from forecast.ts and the pipeline's files.
 
 import type { Chip, ChipTone } from "./dealRoomRows";
@@ -7,7 +8,8 @@ import {
   computeDeal, expectedValueCents, gpaX100, pipelineScores, winProbability, type Moved, type Scenario,
 } from "./forecast";
 import { money, signedMoney } from "./format";
-import type { AuditEntry, AuditFile, Deal, ForecastFile, Scores } from "./types";
+import type { AuditEntry, AuditFile, Deal, ForecastFile, Scores, WeekOverWeekFile } from "./types";
+import { dealChanges, type ChangeRow } from "./whatChangedView";
 
 export interface FlagExplained extends Chip {
   text: string;
@@ -25,17 +27,20 @@ export interface AuditLine {
 
 export interface DealDetail {
   deal: Deal;
+  inForecast: boolean;
+  statusLine: string | null; // why a deal isn't in the forecast
   isTop: boolean;
   edited: boolean;
   scores: Scores | null;
   gpaLine: string | null;
-  probabilityLine: string;
+  probabilityLine: string | null;
   expectedValueLine: string;
   vpLine: string | null;
   vpNotes: string | null;
   flags: FlagExplained[];
   auditEntries: AuditLine[];
-  moveAction: MoveAction;
+  changes: ChangeRow[]; // this week's changes (Salesforce only)
+  moveAction: MoveAction | null; // null: not in the forecast, so it can't be moved
 }
 
 // The panel's Promote to Top / Move to Longtail button and what it will do.
@@ -49,9 +54,33 @@ const pct = (p: number) => `${Math.round(p * 100)}%`;
 const gpaText = (x100: number) => (x100 / 100).toFixed(2);
 const scoresText = (s: Scores) => `${s.leadership} / ${s.commercial} / ${s.contractual}`;
 
-export function dealDetail(deal: Deal, scenario: Scenario, forecast: ForecastFile, audit: AuditFile): DealDetail {
+export function dealDetail(
+  deal: Deal, scenario: Scenario, forecast: ForecastFile, audit: AuditFile, weekOverWeek: WeekOverWeekFile,
+): DealDetail {
   const { settings } = forecast;
   const result = computeDeal(deal, scenario, settings);
+  const changes = dealChanges(weekOverWeek, deal.deal_id);
+
+  if (!result.inForecast) {
+    return {
+      deal,
+      inForecast: false,
+      statusLine: statusLine(deal, forecast, changes),
+      isTop: false,
+      edited: false,
+      scores: null,
+      gpaLine: null,
+      probabilityLine: null,
+      expectedValueLine: "Expected value: $0 (not in forecast)",
+      vpLine: null,
+      vpNotes: deal.vp_notes,
+      flags: flagsExplained(deal, forecast, null, false, null),
+      auditEntries: auditFor(deal, audit),
+      changes,
+      moveAction: null,
+    };
+  }
+
   const ev = money(result.evCents / 100);
   const expectedValueLine = `Expected value = ${money(deal.annual_acv)} × ${pct(result.probability)} = ${ev}`;
 
@@ -74,6 +103,8 @@ export function dealDetail(deal: Deal, scenario: Scenario, forecast: ForecastFil
 
   return {
     deal,
+    inForecast: true,
+    statusLine: null,
     isTop: result.bucket === "Top",
     edited: result.edited,
     scores: result.scores,
@@ -84,7 +115,8 @@ export function dealDetail(deal: Deal, scenario: Scenario, forecast: ForecastFil
     vpNotes: deal.vp_notes,
     flags: flagsExplained(deal, forecast, vpLine, result.edited, result.moved),
     auditEntries: auditFor(deal, audit),
-    moveAction: moveAction(deal, result.bucket, result.moved, forecast),
+    changes,
+    moveAction: moveAction(deal, result.bucket!, result.moved, forecast),
   };
 }
 
@@ -108,6 +140,22 @@ function moveAction(deal: Deal, bucket: "Top" | "Longtail", moved: Moved, foreca
       ? `Goes back to its VP scores ${scoresText(start)} (${band})`
       : `Starts at scores ${scoresText(start)} (${band})`,
   };
+}
+
+/** "Not in Q4 forecast: slipped to Q1-2027", "...: Closed Lost", "...: copy of HubSpot deal HS-9001 (counted there)". */
+function statusLine(deal: Deal, forecast: ForecastFile, changes: ChangeRow[]): string {
+  const quarter = forecast.meta.forecast_quarter;
+  const head = `Not in ${quarter.split("-")[0]} forecast`;
+  if (deal.duplicate_of) {
+    const kept = forecast.deals.find((d) => d.deal_id === deal.duplicate_of);
+    return `${head}: copy of ${kept?.source ?? "another"} deal ${deal.duplicate_of} (counted there)`;
+  }
+  if (deal.fiscal_period !== quarter) {
+    // "Slipped" only when last week's file had it in this quarter; otherwise it just closes later.
+    const slipped = changes.some((c) => c.before === quarter && c.after === deal.fiscal_period);
+    return `${head}: ${slipped ? "slipped to" : "closes in"} ${deal.fiscal_period}`;
+  }
+  return `${head}: ${deal.exclusion_reason ?? "excluded"}`;
 }
 
 /** "2.40 is at least 2.40 → 50% win probability", or "1.20 is below 1.60 → 10% ..." for the lowest band. */

@@ -119,3 +119,37 @@ export interface ForecastFile {
   };
   deals: Deal[];
 }
+
+// Shape of output/week_over_week.json (Salesforce only, SPEC 5).
+
+export interface WeekChange {
+  category: string;
+  label: string | null; // advanced / regressed / changed / expansion / contraction
+  deal_id: string;
+  customer: string | null;
+  product: string | null;
+  sales_rep: string | null;
+  before: string | null;
+  after: string | null;
+  acv_change: number | null; // ACV Changes only
+  ev_change: number;
+  ev_basis: string;
+  bucket: Bucket | null; // this week's bucket (null = not in the forecast)
+  flags: string[];
+}
+
+export interface CouldntCompare {
+  deal_id: string;
+  customer: string | null;
+  product: string | null;
+  sales_rep: string | null;
+  week: string;
+  reason: string;
+}
+
+export interface WeekOverWeekFile {
+  ev_basis: string;
+  counts: Record<string, number>;
+  changes: Record<string, WeekChange[]>;
+  couldnt_compare: CouldntCompare[];
+}
