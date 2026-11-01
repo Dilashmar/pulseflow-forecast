@@ -220,54 +220,63 @@ change in the same week).
 ## 6. Dashboard
 
 Audience: CEO, CRO, CFO in a live meeting. Plain language, big numbers,
-no jargon. Money shown as $1.10M style. Every number traceable to deals.
+no jargon. Every number traceable to deals.
 Header shows "Data as of 2026-10-15".
 
-### 6.1 KPI banner (always visible at top)
+Money: under $1M shown as $K (e.g. $992K); $1M and over as $M with two
+decimals (e.g. $13.18M). Changes carry a sign (+$1.18M, −$100K).
 
-- Total Expected Q4 Sales
-- Top Strategic Deals expected value
-- Longtail expected value, split: Core Salesforce | Acquired CareBridge
-- Variance vs $12.0M target (green if ≥ 0, red if < 0), plus % of target
-- Small notes under the banner:
+### 6.1 Top banner (always visible)
+
+- Progress bar "Total forecast vs $12M target": the bar is split into Top
+  deals, Core Longtail and CareBridge Longtail, with a marker at $12M.
+  Shows the total, the variance (green if ≥ 0, red if < 0) and % of target.
+- Three tiles: Top deals, Core Longtail, CareBridge Longtail, each with its
+  expected value and number of deals.
+- Warnings line:
   - Past-due exposure: $ of expected value on deals past their close date
-  - VP override: "Formula (default)" or "VP override applied" and the $ difference
+  - VP override toggle: "Formula (default)" or "VP override applied", with
+    its $ difference
 - Recalculates instantly on any what-if change.
 
 ### 6.2 Tab 1: Deal Room (what-if)
 
-- Table of all active Q4 deals, grouped: Top Strategic Deals, then Longtail.
+- Table of all active Q4 deals: Top deals first, then Longtail.
 - Columns: customer, product, sales rep, stage, annual ACV, win probability,
-  expected value, flags (past due, duplicate merged, override), VP notes.
-- Top deals: editable Leadership / Commercial / Contractual scores (1–4
-  dropdowns); GPA and probability update live.
-- Promote (Longtail → Top, starts at 3/3/3) and Demote (Top → Longtail)
-  buttons. Warning banner if more than 8 Top deals.
-- Toggle: "Apply VP overrides".
-- "Reset to Baseline" button restores pipeline results and clears all edits.
-- Filters: Product, Sales Rep. Filters narrow the table and show a filtered
-  subtotal; the KPI banner always shows the full company forecast.
-- Edited rows are visibly marked.
+  expected value, flags, VP notes.
+- Top deals: Leadership / Commercial / Contractual score dropdowns (1–4);
+  GPA, probability and expected value update live.
+- Promote (Longtail → Top, starts at 3/3/3) and Demote (Top → Longtail).
+  Warning if more than 8 Top deals.
+- "Reset to Baseline" restores pipeline results and clears all edits.
+- Filters: product and sales rep. Filters narrow the table and show a
+  filtered subtotal; the banner always shows the full company forecast.
+- Flags (past due, duplicate merged, VP override, needs review) shown as
+  colored chips. Edited rows are visibly marked.
 
-### 6.3 Tab 2: What Changed This Week
+### 6.3 Tab 2: What Changed
 
-- Summary counts for the five categories (+ "copied from HubSpot").
-- One table per category: customer, product, rep, before → after,
-  change in expected value.
+- Changes chart, labeled "Change in stage-based pipeline value (Salesforce
+  only)": one up/down bar each for New, Slipped, Lost, Stage moves and
+  Amount changes, plus "Other changes" only if non-zero (pulled into Q4,
+  other quarter changes, missing from current). No starting or ending totals.
+- Below the chart, one list per category: customer, product, rep,
+  before → after, change in expected value. Also "Copied from HubSpot (not
+  new)" and a "Couldn't compare (set aside this week)" note when present.
 
-### 6.4 Tab 3: Data Hygiene & Audit Log
+### 6.4 Tab 3: Data Audit
 
-- Summary at top: number of issues by type, and total $ impact protected.
-- Table: issue type, source file, record(s), what was wrong, how it was
-  resolved, $ impact. Sortable; filter by issue type.
+- Summary line: "Corrections: $X total · net $Y" (sum of absolute $ impacts,
+  and the signed net).
+- Issues table: issue type, source file, record(s), what was wrong, how it
+  was resolved, $ impact, with severity chips. Filter by issue type.
 - Judgment calls (VP override, cross-system duplicate, past-due deals)
-  marked separately as "Decision" with the reasoning.
+  marked as "Decision" with the reasoning.
 
 ### 6.5 Charts (keep to two)
 
-- Progress to target: Top + Longtail (Core, CareBridge) stacked against
-  the $12M line.
-- Expected value by product line.
+- Progress bar to the $12M target (banner).
+- Changes chart (Tab 2).
 
 ## 7. Definition of done
 
