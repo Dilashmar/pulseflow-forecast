@@ -278,13 +278,21 @@ brand-blue top line, the value large in a white body.
 
 ### 6.3 Tab 2: What Changed
 
-- Changes chart, labeled "Change in stage-based pipeline value (Salesforce
-  only)": one up/down bar each for New, Slipped, Lost, Stage moves and
-  Amount changes, plus "Other changes" only if non-zero (pulled into Q4,
-  other quarter changes, missing from current). No starting or ending totals.
-- Below the chart, one list per category: customer, product, rep,
-  before → after, change in expected value. Also "Copied from HubSpot (not
-  new)" and a "Couldn't compare (set aside this week)" note when present.
+- A column chart of the change in stage-based Salesforce pipeline value, one
+  column per category in the brief's order: New deals, Slipped out of Q4,
+  Closed Lost, Stage moves, Amount changes ("Other changes" only when it isn't
+  $0). Increases go up from a zero line (green), decreases go down (amber);
+  each column shows its signed $ and its number of deals, so colour is never
+  the only signal.
+- Each column is a button: selecting it lists that category's deals below
+  (customer, what changed as "before → after", $ change; largest first). The
+  tab opens on the first category that has deals. Clicking a customer opens
+  the deal drawer.
+- Net change shown small in the corner; one line notes that values are
+  stage-based, so Top deals won't match their VP-scored forecast.
+- Copies of HubSpot deals (D6) are not a column (they aren't changes); the
+  deal drawer still says "Copied from HubSpot (not new)". "Couldn't compare"
+  is listed only when it isn't empty.
 
 ### 6.4 Tab 3: Data Audit
 
@@ -304,8 +312,8 @@ stays in `output/audit_log.json` for reconciliation.
 
 ### 6.5 Charts (keep to one)
 
-- Changes chart (Tab 2). The banner has no chart: its variance card answers
-  "are we on track?" in words.
+- The What Changed column chart (6.3). The banner has no chart: its variance
+  answers "are we on track?" in words.
 
 ## 7. Definition of done
 

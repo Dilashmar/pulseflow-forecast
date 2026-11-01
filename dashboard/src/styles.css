@@ -1027,7 +1027,7 @@ tr.selected > :first-child {
   }
 }
 
-/* --- What Changed tab ------------------------------------------------------------- */
+/* --- What Changed tab: a column per category, then the selected one's deals ----- */
 
 .what-changed {
   flex: 1;
@@ -1043,59 +1043,132 @@ tr.selected > :first-child {
   padding: var(--space-4);
 }
 
-.change-chart {
-  margin: 0 0 var(--space-4);
-  max-width: 820px;
-}
-
-.change-chart figcaption {
-  display: block;
-  margin-bottom: var(--space-2);
-}
-
-.change-chart-plot {
-  width: 100%;
-}
-
-.change-net {
-  margin: var(--space-2) 0 0;
-  font-weight: 700;
-}
-
-.chart-tooltip {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.top-note {
-  margin: 0 0 var(--space-5);
-  max-width: 820px;
+.net-change {
+  margin: 0;
   color: var(--label);
 }
 
-.change-section + .change-section {
-  margin-top: var(--space-5);
+.net-change strong {
+  font-size: 16px;
 }
 
-.change-section h3 {
-  margin-bottom: var(--space-2);
+/* Columns around a zero line: increases up, decreases down. Each column is a button. */
+.column-chart {
+  --half: 120px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-4);
+  max-width: 960px;
+  margin: 0 auto var(--space-4);
+}
+
+.column-chart::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--half);
+  height: 2px;
+  background: #706e6b;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.column.selected {
+  background: var(--brand-light);
+}
+
+.column:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.column-half {
+  height: var(--half);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.column-above { justify-content: flex-end; padding-bottom: 1px; }
+.column-below { justify-content: flex-start; padding-top: 3px; }
+
+.column-bar {
+  display: block;
+  width: 64px;
+  opacity: 0.55;
+}
+
+.column.selected .column-bar,
+.column:hover .column-bar {
+  opacity: 1;
+}
+
+.column-up .column-bar { background: var(--good); border-radius: 4px 4px 0 0; }
+.column-down .column-bar { background: #b86e00; border-radius: 0 0 4px 4px; }
+.column-zero .column-bar { background: var(--other); }
+
+.column-value {
+  margin: var(--space-1) 0;
   font-size: 15px;
+  font-weight: 700;
+}
+
+.column-up .column-value { color: var(--good); }
+.column-down .column-value { color: #8c4b02; } /* the bar's amber is too light for text */
+
+.column-label {
+  margin-top: var(--space-1);
   font-weight: 600;
 }
 
-.change-section .table-scroll {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+.column-count {
+  font-size: 13px;
+  color: var(--label);
 }
 
-/* Numbers that went up or down: the sign and an arrow or word carry the meaning, colour backs it up. */
+/* The selected column's deals. */
+.change-list {
+  max-width: 960px;
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+}
+
+.change-list + .change-list {
+  margin-top: var(--space-5);
+}
+
+.change-list .section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.change-table td {
+  white-space: normal;
+}
+
+.change-note {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--label);
+}
+
+/* Money that went up or down: the sign carries the meaning, colour backs it up. */
 .tone-up { color: var(--good); }
-.tone-down { color: var(--bad); }
+.tone-down { color: #8c4b02; }
 .tone-zero { color: var(--label); }
 
 .change-value {
@@ -1106,23 +1179,6 @@ tr.selected > :first-child {
 .before { color: var(--muted); }
 .arrow { color: var(--muted); }
 .after { font-weight: 600; }
-
-.direction,
-.acv-note {
-  margin-left: var(--space-3);
-  font-size: 13px;
-}
-
-.direction { font-weight: 600; }
-.acv-note { color: var(--label); }
-
-.change-top { margin-left: var(--space-2); }
-
-.also-in {
-  margin-left: var(--space-2);
-  font-size: 12px;
-  color: var(--label);
-}
 
 /* --- Detail panel: deals not in the forecast, and this week's changes -------------- */
 

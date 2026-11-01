@@ -105,7 +105,6 @@ export function DetailPanel(props: DetailPanelProps) {
                   <span className={`change-value tone-${c.tone}`}>{c.change}</span>
                 </div>
                 <BeforeAfter before={c.before} after={c.after} />
-                {c.acvNote && <span className="acv-note">{c.acvNote}</span>}
               </li>
             ))}
           </ul>

@@ -1,26 +1,26 @@
 {
   "summary": {
-    "entries": 38,
+    "entries": 40,
     "by_check": {
-      "D1": 4,
-      "D2": 2,
-      "D3": 4,
+      "D1": 2,
+      "D2": 1,
+      "D3": 10,
       "D4": 4,
       "D5": 1,
       "D6": 1,
       "D7": 7,
       "D8": 2,
       "D9": 4,
-      "D10": 6,
+      "D10": 5,
       "D13": 3
     },
     "by_kind": {
       "Decision": 6,
-      "Fix": 29,
-      "Note": 3
+      "Fix": 25,
+      "Note": 9
     },
-    "total_impact_abs": 5648900,
-    "total_impact_net": 4665500,
+    "total_impact_abs": 5058900,
+    "total_impact_net": 4075500,
     "total_at_risk": 812000
   },
   "entries": [
@@ -30,44 +30,20 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 9,
-          "deal_id": "006PF000001L007YAC",
-          "customer": "Nebula Health Alliance"
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 17,
+          "deal_id": "006PF000001L014YAC",
+          "customer": "Cascadia Crest Medical"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 10,
-          "deal_id": "006PF000001L007YAC",
-          "customer": "Nebula Health Alliance"
-        }
-      ],
-      "what_was_wrong": "Row 10 is an exact copy of row 9",
-      "resolution": "Kept row 9; dropped the copy",
-      "impact": 360000,
-      "at_risk": null,
-      "reasoning": null
-    },
-    {
-      "check": "D1",
-      "title": "Duplicate rows removed",
-      "kind": "Fix",
-      "records": [
-        {
-          "source_file": "week_2_update.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 18,
           "deal_id": "006PF000001L014YAC",
           "customer": "Cascadia Crest Medical"
-        },
-        {
-          "source_file": "week_2_update.csv",
-          "source_row": 19,
-          "deal_id": "006PF000001L014YAC",
-          "customer": "Cascadia Crest Medical"
         }
       ],
-      "what_was_wrong": "Row 19 is an exact copy of row 18",
-      "resolution": "Kept row 18; dropped the copy",
+      "what_was_wrong": "Row 18 is an exact copy of row 17",
+      "resolution": "Kept row 17; dropped the copy",
       "impact": 320000,
       "at_risk": null,
       "reasoning": null
@@ -78,61 +54,13 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 11,
-          "deal_id": "006PF000001L008YAC",
-          "customer": "Caledonia General Health"
-        },
-        {
-          "source_file": "week_2_update.csv",
-          "source_row": 12,
-          "deal_id": "006PF000001L008YAC",
-          "customer": "Caledonia General Health"
-        }
-      ],
-      "what_was_wrong": "2 versions of deal 006PF000001L008YAC (rows 11, 12) with different stage, stage_probability, amount_raw, annual_acv, days_in_stage",
-      "resolution": "Kept row 12 (lowest Days_In_Stage, 9: most recent update); dropped the other version(s)",
-      "impact": 240000,
-      "at_risk": null,
-      "reasoning": null
-    },
-    {
-      "check": "D1",
-      "title": "Duplicate rows removed",
-      "kind": "Fix",
-      "records": [
-        {
-          "source_file": "2_sfdc_pipeline_prior_week.csv",
-          "source_row": 17,
-          "deal_id": "006PF000001L014YAC",
-          "customer": "Cascadia Crest Medical"
-        },
-        {
-          "source_file": "2_sfdc_pipeline_prior_week.csv",
-          "source_row": 18,
-          "deal_id": "006PF000001L014YAC",
-          "customer": "Cascadia Crest Medical"
-        }
-      ],
-      "what_was_wrong": "Row 18 is an exact copy of row 17",
-      "resolution": "Kept row 17; dropped the copy",
-      "impact": 0,
-      "at_risk": null,
-      "reasoning": null
-    },
-    {
-      "check": "D2",
-      "title": "Conflicting versions, kept the latest",
-      "kind": "Fix",
-      "records": [
-        {
-          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 10,
           "deal_id": "006PF000001L008YAC",
           "customer": "Caledonia General Health"
         },
         {
-          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 11,
           "deal_id": "006PF000001L008YAC",
           "customer": "Caledonia General Health"
@@ -140,7 +68,7 @@
       ],
       "what_was_wrong": "2 versions of deal 006PF000001L008YAC (rows 10, 11) with different stage, stage_probability, amount_raw, annual_acv, days_in_stage",
       "resolution": "Kept row 11 (lowest Days_In_Stage, 2: most recent update); dropped the other version(s)",
-      "impact": 0,
+      "impact": 240000,
       "at_risk": null,
       "reasoning": null
     },
@@ -165,6 +93,114 @@
       "what_was_wrong": "Row 4 is an exact copy of row 3",
       "resolution": "Kept row 3; dropped the copy",
       "impact": 192000,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 4,
+          "deal_id": "006PF000001L002",
+          "customer": "Obsidian Health Network"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L002 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 6,
+          "deal_id": "006PF000001L008",
+          "customer": "Caledonia General Health"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L008 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 9,
+          "deal_id": "006PF000001L011",
+          "customer": "Polaris Community Hospitals"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L011 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 14,
+          "deal_id": "006PF000001L016",
+          "customer": "Briarwood Health Partners"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001L016 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 19,
+          "deal_id": "006PF000001T002",
+          "customer": "Solaris Medical System (FKA Solaris Health Group)"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001T002 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
+      "at_risk": null,
+      "reasoning": null
+    },
+    {
+      "check": "D3",
+      "title": "Short Salesforce IDs matched",
+      "kind": "Note",
+      "records": [
+        {
+          "source_file": "2_sfdc_pipeline_prior_week.csv",
+          "source_row": 21,
+          "deal_id": "006PF000001T004",
+          "customer": "Zephyr Valley System (AKA Zephyr Regional Medical Group)"
+        }
+      ],
+      "what_was_wrong": "15-character ID 006PF000001T004 (other files use the 18-character form)",
+      "resolution": "Matched to other records on the first 15 characters",
+      "impact": 0,
       "at_risk": null,
       "reasoning": null
     },
@@ -228,26 +264,8 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 21,
-          "deal_id": "006PF000001L016YAC",
-          "customer": "Briarwood Health Partners"
-        }
-      ],
-      "what_was_wrong": "Fiscal period is Q1-2027, not Q4-2026",
-      "resolution": "Left out of the Q4-2026 forecast",
-      "impact": 200000,
-      "at_risk": null,
-      "reasoning": null
-    },
-    {
-      "check": "D10",
-      "title": "Outside the forecast quarter, left out",
-      "kind": "Fix",
-      "records": [
-        {
-          "source_file": "week_2_update.csv",
-          "source_row": 35,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 33,
           "deal_id": "006PF000001X001YAC",
           "customer": "Fjordland Peninsula Health"
         }
@@ -264,8 +282,8 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 36,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 34,
           "deal_id": "006PF000001X002YAC",
           "customer": "Timberline Valley Medical"
         }
@@ -282,8 +300,8 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 37,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 35,
           "deal_id": "006PF000001X003YAC",
           "customer": "Greystone Health Cooperative"
         }
@@ -300,8 +318,8 @@
       "kind": "Fix",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 39,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 37,
           "deal_id": "006PF000001X005YAC",
           "customer": "Coral Reef Medical Group"
         }
@@ -372,8 +390,8 @@
       "kind": "Decision",
       "records": [
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 34,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 32,
           "deal_id": "006PF000001M001YAC",
           "customer": "Aethelgard Post-Acute Care"
         },
@@ -522,7 +540,7 @@
       "kind": "Decision",
       "records": [
         {
-          "source_file": "week_2_update.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 3,
           "deal_id": "006PF000001L001YAC",
           "customer": "Hyperion Health System"
@@ -540,7 +558,7 @@
       "kind": "Decision",
       "records": [
         {
-          "source_file": "week_2_update.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 4,
           "deal_id": "006PF000001L002YAC",
           "customer": "Obsidian Health Network"
@@ -558,7 +576,7 @@
       "kind": "Decision",
       "records": [
         {
-          "source_file": "week_2_update.csv",
+          "source_file": "1_sfdc_pipeline_current.csv",
           "source_row": 5,
           "deal_id": "006PF000001L003YAC",
           "customer": "Valkyrie Regional Medical"
@@ -600,8 +618,8 @@
           "customer": "Aethelgard Health"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 26,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 24,
           "deal_id": "006PF000001T001YAC",
           "customer": "Aethelgard Health System (AKA Aethelgard Regional Medical)"
         }
@@ -624,8 +642,8 @@
           "customer": "Solaris Medical"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 27,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 25,
           "deal_id": "006PF000001T002YAC",
           "customer": "Solaris Medical System (FKA Solaris Health Group)"
         }
@@ -648,15 +666,15 @@
           "customer": "Vanguard Meridian"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 28,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 26,
           "deal_id": "006PF000001T003YAC",
           "customer": "Vanguard Meridian Health Network"
         }
       ],
       "what_was_wrong": "VP sheet ID 006PF000001T003 is the 15-character form of 006PF000001T003YAC",
       "resolution": "Matched on the first 15 characters; scored as a Top deal",
-      "impact": 210000,
+      "impact": 180000,
       "at_risk": null,
       "reasoning": null
     },
@@ -672,8 +690,8 @@
           "customer": "Zephyr Valley"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 29,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 27,
           "deal_id": "006PF000001T004YAC",
           "customer": "Zephyr Valley System (AKA Zephyr Regional Medical Group)"
         }
@@ -696,8 +714,8 @@
           "customer": "Ironwood Clinical"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 30,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 28,
           "deal_id": "006PF000001T005YAC",
           "customer": "Ironwood Clinical Center & Health System"
         }
@@ -720,8 +738,8 @@
           "customer": "Ironwood Clinical"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 30,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 28,
           "deal_id": "006PF000001T005YAC",
           "customer": "Ironwood Clinical Center & Health System"
         }
@@ -744,8 +762,8 @@
           "customer": "Borealis Health"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 31,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 29,
           "deal_id": "006PF000001T006YAC",
           "customer": "Borealis Health Alliance - Main Campus"
         }
@@ -768,8 +786,8 @@
           "customer": "Starlight Oncology"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 32,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 30,
           "deal_id": "006PF000001T007YAC",
           "customer": "Starlight Oncology & Cancer Network"
         }
@@ -792,8 +810,8 @@
           "customer": "Halcyon Medical"
         },
         {
-          "source_file": "week_2_update.csv",
-          "source_row": 33,
+          "source_file": "1_sfdc_pipeline_current.csv",
+          "source_row": 31,
           "deal_id": "006PF000001T008YAC",
           "customer": "Halcyon Medical Group (FKA Halcyon Health)"
         }

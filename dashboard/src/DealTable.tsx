@@ -28,6 +28,8 @@ export function DealTable(props: DealTableProps) {
     sections, filters, onFiltersChange, options, search, onSearchChange, selectedId, onSelect,
     onScoreChange, onMove, changes, onReset,
   } = props;
+  // Both sections start open; either can be collapsed to its heading line.
+  const [topOpen, setTopOpen] = useState(true);
   const [longtailOpen, setLongtailOpen] = useState(true);
   const [top, longtail] = sections;
 
@@ -61,7 +63,7 @@ export function DealTable(props: DealTableProps) {
       </div>
 
       <div className="table-scroll">
-        <SectionTable section={top} heading={<h2>{top.title} <span className="section-count">({top.rows.length})</span></h2>}
+        <SectionTable section={top} open={topOpen} onToggle={() => setTopOpen(!topOpen)}
           detailColumn="Scores (L / C / K)" render={(row) => (
             <ScoreSelects deal={row.deal} scores={row.scores!} onChange={onScoreChange} variant="compact" />
           )}
@@ -73,16 +75,7 @@ export function DealTable(props: DealTableProps) {
           )}
           selectedId={selectedId} onSelect={onSelect} />
 
-        <SectionTable section={longtail} open={longtailOpen}
-          heading={
-            <h2>
-              <button type="button" className="section-toggle" aria-expanded={longtailOpen}
-                onClick={() => setLongtailOpen(!longtailOpen)}>
-                <ChevronIcon open={longtailOpen} />
-                {longtail.title} <span className="section-count">({longtail.rows.length})</span>
-              </button>
-            </h2>
-          }
+        <SectionTable section={longtail} open={longtailOpen} onToggle={() => setLongtailOpen(!longtailOpen)}
           detailColumn="Stage" render={(row) => row.stage}
           action={(row) => (
             <button type="button" className="row-action" aria-label={`Promote ${row.customer} to the Top 8`}
@@ -98,8 +91,8 @@ export function DealTable(props: DealTableProps) {
 
 interface SectionTableProps {
   section: Section;
-  heading: ReactNode;
-  open?: boolean;
+  open: boolean;
+  onToggle: () => void;
   detailColumn: string; // the fourth column: Scores (Top 8) or Stage (Longtail)
   render: (row: DealRoomRow) => ReactNode;
   action: (row: DealRoomRow) => ReactNode;
@@ -107,11 +100,16 @@ interface SectionTableProps {
   onSelect: (dealId: string) => void;
 }
 
-function SectionTable({ section, heading, open = true, detailColumn, render, action, selectedId, onSelect }: SectionTableProps) {
+function SectionTable({ section, open, onToggle, detailColumn, render, action, selectedId, onSelect }: SectionTableProps) {
   return (
     <div className={`deal-section deal-section-${section.key}`}>
       <div className="section-head">
-        {heading}
+        <h2>
+          <button type="button" className="section-toggle" aria-expanded={open} onClick={onToggle}>
+            <ChevronIcon open={open} />
+            {section.title} <span className="section-count">({section.rows.length})</span>
+          </button>
+        </h2>
         <span className="section-total">{section.total}</span>
       </div>
       {open && (
