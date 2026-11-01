@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, ServerDown, applyUpdate, cancelUpdate, checkFiles, type CheckResult, type Slot, type UpdateStatus } from "./updateApi";
-import { SERVER_DOWN, SLOTS, checklistView, defaultAsOf, slotSources } from "./uploadView";
+import { SERVER_DOWN, SLOTS, asOfError, checklistView, defaultAsOf, slotSources } from "./uploadView";
 
 interface UpdateDialogProps {
   open: boolean;
@@ -10,7 +10,7 @@ interface UpdateDialogProps {
   dashboardAsOf: string;
 }
 
-/** Weekly update (SPEC 8.3): drop files, Check files, then Apply update or Cancel.
+/** Upload files (SPEC 8.3): drop files, Check files, then Apply update or Cancel.
  *  A native <dialog>: focus stays inside, Esc closes, screen readers announce it. */
 export function UpdateDialog({ open, onClose, status, dashboardAsOf }: UpdateDialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -76,6 +76,7 @@ export function UpdateDialog({ open, onClose, status, dashboardAsOf }: UpdateDia
     onClose();
   };
 
+  const dateError = asOfError(asOf);
   const sources = slotSources(Object.fromEntries(Object.entries(files).map(([k, f]) => [k, f.name])), status);
   const view = result ? checklistView(result) : null;
 
@@ -83,7 +84,7 @@ export function UpdateDialog({ open, onClose, status, dashboardAsOf }: UpdateDia
     <dialog ref={ref} className="update-dialog" aria-labelledby="update-title"
       onCancel={(e) => { e.preventDefault(); close(); }}>
       <header className="update-header">
-        <h2 id="update-title">Update data</h2>
+        <h2 id="update-title">Upload files</h2>
         <button type="button" className="icon-button" aria-label="Close" title="Close" onClick={close}>×</button>
       </header>
       <p className="update-intro">Add the files you have. Any slot you leave empty reuses last run's file.</p>
@@ -95,10 +96,13 @@ export function UpdateDialog({ open, onClose, status, dashboardAsOf }: UpdateDia
         ))}
       </div>
 
-      <label className="as-of-field">
-        <span>As-of date</span>
-        <input type="date" required value={asOf} onChange={(e) => { setAsOf(e.target.value); setResult(null); }} />
-      </label>
+      <div className="as-of-field">
+        <label htmlFor="as-of-input">As-of date</label>
+        <input id="as-of-input" type="text" inputMode="numeric" placeholder="YYYY-MM-DD" required
+          value={asOf} aria-invalid={dateError !== null} aria-describedby="as-of-help"
+          onChange={(e) => { setAsOf(e.target.value); setResult(null); }} />
+        <span id="as-of-help" className={dateError ? "as-of-error" : "as-of-hint"}>{dateError ?? "YYYY-MM-DD"}</span>
+      </div>
 
       <div className="update-result" role="status" aria-live="polite">
         {error && <p className="update-error">{error}</p>}
@@ -118,18 +122,17 @@ export function UpdateDialog({ open, onClose, status, dashboardAsOf }: UpdateDia
       </div>
 
       <footer className="update-actions">
-        <button type="button" className="button" onClick={check} disabled={busy !== null || !asOf}>
+        <button type="button" className="button" onClick={check} disabled={busy !== null || dateError !== null}>
           {busy === "checking" ? "Checking…" : "Check files"}
         </button>
         <span className="update-actions-right">
           <button type="button" className="button" onClick={close} disabled={busy === "applying"}>Cancel</button>
           <button type="button" className="button button-primary" onClick={apply}
-            disabled={!view?.canApply || busy !== null} aria-describedby="apply-note">
+            disabled={!view?.canApply || busy !== null}>
             {busy === "applying" ? "Applying…" : "Apply update"}
           </button>
         </span>
       </footer>
-      <p id="apply-note" className="apply-note">Applying reloads the dashboard; what-if changes are reset.</p>
     </dialog>
   );
 }

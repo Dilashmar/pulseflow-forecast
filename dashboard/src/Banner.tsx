@@ -3,6 +3,9 @@ import type { BannerView } from "./bannerView";
 interface BannerProps {
   view: BannerView;
   onVpOverrideChange: (on: boolean) => void;
+  onUpload: () => void; // opens the Upload files dialog (SPEC 8)
+  showUndo: boolean; // there is an update to undo
+  onUndo: () => void;
 }
 
 function TileBox({ tile, kind }: { tile: BannerView["tiles"][number]; kind: string }) {
@@ -15,7 +18,7 @@ function TileBox({ tile, kind }: { tile: BannerView["tiles"][number]; kind: stri
   );
 }
 
-export function Banner({ view, onVpOverrideChange }: BannerProps) {
+export function Banner({ view, onVpOverrideChange, onUpload, showUndo, onUndo }: BannerProps) {
   const status = view.onTarget ? "on-target" : "short";
   return (
     <section className="banner" aria-label="Forecast summary">
@@ -88,6 +91,17 @@ export function Banner({ view, onVpOverrideChange }: BannerProps) {
           <span className="vp-toggle-label">Apply VP overrides</span>
           <span className="vp-toggle-status">{view.vpOverride}</span>
         </label>
+        <span className="banner-actions">
+          {showUndo && (
+            <button type="button" className="button button-small" title="Go back to last week's data"
+              aria-label="Undo: go back to last week's data" onClick={onUndo}>
+              Undo
+            </button>
+          )}
+          <button type="button" className="button button-small" onClick={onUpload}>
+            <span aria-hidden="true">⇪</span> Upload files
+          </button>
+        </span>
       </div>
     </section>
   );

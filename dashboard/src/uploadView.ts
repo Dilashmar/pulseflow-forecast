@@ -1,4 +1,4 @@
-// What the weekly update dialog and the sidebar's Weekly update section show
+// What the Upload files dialog and the banner's Upload files / Undo buttons show
 // (SPEC 8.2, 8.3). Display logic only; the server does every check.
 
 import type { CheckResult, Slot, UpdateStatus } from "./updateApi";
@@ -65,8 +65,18 @@ export function checklistView(result: CheckResult): ChecklistView {
   };
 }
 
-/** "Go back to last week's data": a button when an update can be undone; a note once it has been. */
-export function undoView(status: UpdateStatus | null): { button: boolean; note: string | null } {
-  if (!status) return { button: false, note: null };
-  return { button: status.can_undo, note: status.undone ? "Already gone back" : null };
+/** Undo (go back to last week's data): only when there is an update to undo; gone after use. */
+export function canUndo(status: UpdateStatus | null): boolean {
+  return status?.can_undo ?? false;
+}
+
+const AS_OF_FORMAT = /^\d{4}-\d{2}-\d{2}$/; // digits and hyphens only
+
+/** The as-of date is typed by hand: null when it's a real YYYY-MM-DD date, otherwise what to fix. */
+export function asOfError(text: string): string | null {
+  if (!AS_OF_FORMAT.test(text)) return "Use the format YYYY-MM-DD, for example 2026-10-22.";
+  const [year, month, day] = text.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  const real = parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+  return real ? null : `${text} isn't a real date.`;
 }

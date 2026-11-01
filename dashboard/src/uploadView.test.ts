@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CheckResult, ChecklistItem, UpdateStatus } from "./updateApi";
-import { SERVER_DOWN, SLOTS, checklistView, defaultAsOf, slotSources, undoView } from "./uploadView";
+import { SERVER_DOWN, SLOTS, asOfError, canUndo, checklistView, defaultAsOf, slotSources } from "./uploadView";
 
 const STATUS: UpdateStatus = { as_of: "2026-10-15", can_undo: false, undone: false, pending: false };
 const FIRST_RUN: UpdateStatus = { as_of: null, can_undo: false, undone: false, pending: false };
@@ -62,6 +62,28 @@ describe("as-of date", () => {
   });
 });
 
+describe("as-of date typed by hand: YYYY-MM-DD, digits and hyphens only", () => {
+  const FORMAT = "Use the format YYYY-MM-DD, for example 2026-10-22.";
+
+  it("accepts a real date", () => {
+    expect(asOfError("2026-10-22")).toBeNull();
+    expect(asOfError("2028-02-29")).toBeNull(); // leap year
+  });
+
+  it.each([
+    ["22/10/2026"], ["2026-10-2"], ["2026-1-22"], ["26-10-22"], ["20261022"],
+    ["2026-1O-22"], ["2026-10-22a"], [" 2026-10-22"], ["2026.10.22"], ["2026–10–22"], [""],
+  ])("rejects %j: wrong format or a character other than digits and hyphens", (text) => {
+    expect(asOfError(text)).toBe(FORMAT);
+  });
+
+  it.each([["2026-13-01"], ["2026-00-10"], ["2026-02-30"], ["2027-02-29"], ["2026-10-00"]])(
+    "rejects %j: not a real date", (text) => {
+      expect(asOfError(text)).toBe(`${text} isn't a real date.`);
+    },
+  );
+});
+
 describe("checklist: one line when fine, otherwise only the problems", () => {
   it("all fine", () => {
     expect(checklistView(result(true, allOk))).toEqual({
@@ -100,12 +122,12 @@ describe("checklist: one line when fine, otherwise only the problems", () => {
   });
 });
 
-describe("go back", () => {
-  it("shown only when there is an update to undo", () => {
-    expect(undoView(STATUS)).toEqual({ button: false, note: null });
-    expect(undoView({ ...STATUS, can_undo: true })).toEqual({ button: true, note: null });
-    expect(undoView({ ...STATUS, undone: true })).toEqual({ button: false, note: "Already gone back" });
-    expect(undoView(null)).toEqual({ button: false, note: null });
+describe("Undo (go back to last week's data)", () => {
+  it("shown only when there is an update to undo; gone after use", () => {
+    expect(canUndo(STATUS)).toBe(false);
+    expect(canUndo({ ...STATUS, can_undo: true })).toBe(true);
+    expect(canUndo({ ...STATUS, undone: true })).toBe(false);
+    expect(canUndo(null)).toBe(false); // server not running
   });
 });
 

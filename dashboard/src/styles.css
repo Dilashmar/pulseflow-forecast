@@ -1588,30 +1588,17 @@ tr.selected > :first-child {
 
 /* --- Weekly update: sidebar section and dialog (SPEC 8) --------------------------- */
 
-.weekly-update {
+/* Upload files / Undo: right end of the banner's VP override row. */
+.banner-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   gap: var(--space-2);
-  padding: var(--space-4);
-  border-top: 1px solid var(--border);
+  margin-left: auto;
 }
 
-.weekly-update h2 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--label);
-}
-
-.weekly-update-date {
-  margin: 0;
-}
-
-.rail-update {
-  margin-top: var(--space-2);
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  padding-top: var(--space-1);
+.button-small {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
 }
 
 .button-primary {
@@ -1726,7 +1713,15 @@ tr.selected > :first-child {
   font-weight: 600;
 }
 
+.as-of-field input[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+
+.as-of-hint { font-size: 13px; font-weight: 400; color: var(--label); }
+.as-of-error { font-size: 13px; font-weight: 600; color: var(--bad); }
+
 .as-of-field input {
+  width: 9em;
   min-height: 36px;
   font: inherit;
   font-weight: 400;
@@ -1786,9 +1781,3 @@ tr.selected > :first-child {
   gap: var(--space-2);
 }
 
-.apply-note {
-  margin: var(--space-2) 0 0;
-  font-size: 13px;
-  color: var(--label);
-  text-align: right;
-}

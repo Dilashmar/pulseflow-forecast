@@ -370,18 +370,20 @@ existing pipeline. No changes to pipeline logic or forecast math.
 - First run (no previous run): all four required; list what's missing.
 - No new files: "No new files. Nothing to update."
 - Each slot shows its source: New file / Reused (as of <date>) / Automatic.
-- As-of date: required field, defaults to the current data's as-of date (editable).
+- As-of date: required, typed as YYYY-MM-DD (digits and hyphens only, must be a
+  real date); defaults to the current data's as-of date.
 
 ### 8.3 Flow
-1. Choose files + as-of date → **Check files**
+1. **Upload files** (banner, right of the VP override toggle) opens the dialog.
+   Choose files + as-of date → **Check files**
 2. Checklist: "✅ All files look good", or only the ⚠️ / ❌ rows with their
    messages. If there is no ❌, **Apply update** becomes available (the
    pipeline has already run into a temporary folder).
 3. **Apply update** (replaces current output; the dashboard reloads and the
    banner shows the new total) or **Cancel** (discards)
-4. **Go back to last week's data** restores the run before the current one.
-   One step only: after going back, the button shows "Already gone back" until
-   the next update is applied.
+4. **Undo** (next to Upload files; "Go back to last week's data" on hover and
+   for screen readers) restores the run before the current one. One step only:
+   it shows only when there is an update to undo, and disappears after use.
 
 One pending update at a time: a new Check replaces any preview not yet applied.
 

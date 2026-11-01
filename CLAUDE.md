@@ -13,7 +13,7 @@ Full rules, data issues, and expected results are in SPEC.md. Read it first.
 - Run pipeline: `python pipeline/run.py --data data/raw`
 - Run tests: `pytest`
 - Start dashboard: `cd dashboard && npm run dev`
-- Start update server (for the dashboard's Update data): `.venv/bin/uvicorn server.app:app --port 8000`
+- Start update server (for the dashboard's Upload files): `.venv/bin/uvicorn server.app:app --port 8000`
 
 ## Structure
 - `data/raw/`: original input files. NEVER modify.

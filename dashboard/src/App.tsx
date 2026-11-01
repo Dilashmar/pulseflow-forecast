@@ -17,7 +17,7 @@ import { Sidebar, type Tab } from "./Sidebar";
 import type { Deal } from "./types";
 import { UpdateDialog } from "./UpdateDialog";
 import { ServerDown, getStatus, undoUpdate, type UpdateStatus } from "./updateApi";
-import { SERVER_DOWN, undoView } from "./uploadView";
+import { SERVER_DOWN, canUndo } from "./uploadView";
 import { WhatChanged } from "./WhatChanged";
 import { whatChangedView } from "./whatChangedView";
 
@@ -88,7 +88,13 @@ export function App() {
           <h1>{view.title}</h1>
           <p className="as-of">{view.asOf}</p>
         </header>
-        <Banner view={view} onVpOverrideChange={(on) => setScenario((s) => setVpOverride(s, on))} />
+        <Banner
+          view={view}
+          onVpOverrideChange={(on) => setScenario((s) => setVpOverride(s, on))}
+          onUpload={() => setUpdateOpen(true)}
+          showUndo={canUndo(updateStatus)}
+          onUndo={goBack}
+        />
       </div>
 
       <Sidebar
@@ -99,12 +105,6 @@ export function App() {
         options={filterOptions(rows)}
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
-        update={{
-          asOf: forecast.meta.as_of,
-          undo: undoView(updateStatus),
-          onOpen: () => setUpdateOpen(true),
-          onUndo: goBack,
-        }}
       />
 
       <UpdateDialog open={updateOpen} onClose={() => setUpdateOpen(false)} status={updateStatus}
