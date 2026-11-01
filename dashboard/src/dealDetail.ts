@@ -3,7 +3,9 @@
 // only; every number comes from forecast.ts and the pipeline's files.
 
 import type { Chip, ChipTone } from "./dealRoomRows";
-import { computeDeal, expectedValueCents, gpaX100, pipelineScores, winProbability, type Scenario } from "./forecast";
+import {
+  computeDeal, expectedValueCents, gpaX100, pipelineScores, winProbability, type Moved, type Scenario,
+} from "./forecast";
 import { money, signedMoney } from "./format";
 import type { AuditEntry, AuditFile, Deal, ForecastFile, Scores } from "./types";
 
@@ -33,10 +35,19 @@ export interface DealDetail {
   vpNotes: string | null;
   flags: FlagExplained[];
   auditEntries: AuditLine[];
+  moveAction: MoveAction;
+}
+
+// The panel's Promote to Top / Move to Longtail button and what it will do.
+export interface MoveAction {
+  kind: "promote" | "demote";
+  label: string;
+  note: string;
 }
 
 const pct = (p: number) => `${Math.round(p * 100)}%`;
 const gpaText = (x100: number) => (x100 / 100).toFixed(2);
+const scoresText = (s: Scores) => `${s.leadership} / ${s.commercial} / ${s.contractual}`;
 
 export function dealDetail(deal: Deal, scenario: Scenario, forecast: ForecastFile, audit: AuditFile): DealDetail {
   const { settings } = forecast;
@@ -71,8 +82,31 @@ export function dealDetail(deal: Deal, scenario: Scenario, forecast: ForecastFil
     expectedValueLine,
     vpLine,
     vpNotes: deal.vp_notes,
-    flags: flagsExplained(deal, forecast, vpLine, result.edited),
+    flags: flagsExplained(deal, forecast, vpLine, result.edited, result.moved),
     auditEntries: auditFor(deal, audit),
+    moveAction: moveAction(deal, result.bucket, result.moved, forecast),
+  };
+}
+
+function moveAction(deal: Deal, bucket: "Top" | "Longtail", moved: Moved, forecast: ForecastFile): MoveAction {
+  const { settings } = forecast;
+  if (bucket === "Top") {
+    return {
+      kind: "demote",
+      label: "Move to Longtail",
+      note: `Goes back to its stage probability (${pct(deal.stage_probability)} for ${deal.stage ?? "its stage"})`,
+    };
+  }
+  // A demoted Top deal goes back to its VP scores; any other Longtail deal starts at the promote scores.
+  const start = moved === "demoted" ? pipelineScores(deal)! : settings.promote_scores;
+  const x100 = gpaX100(start, settings.gpa_weights);
+  const band = `GPA ${gpaText(x100)} → ${pct(winProbability(x100, settings.win_probability_cutoffs))}`;
+  return {
+    kind: "promote",
+    label: "Promote to Top",
+    note: moved === "demoted"
+      ? `Goes back to its VP scores ${scoresText(start)} (${band})`
+      : `Starts at scores ${scoresText(start)} (${band})`,
   };
 }
 
@@ -101,9 +135,20 @@ function vpExplanation(deal: Deal, status: ReturnType<typeof computeDeal>["vpOve
   return `${head} Not applied: the formula is the default.`;
 }
 
-function flagsExplained(deal: Deal, forecast: ForecastFile, vpLine: string | null, edited: boolean): FlagExplained[] {
+function flagsExplained(
+  deal: Deal, forecast: ForecastFile, vpLine: string | null, edited: boolean, moved: Moved,
+): FlagExplained[] {
   const flags: FlagExplained[] = [];
   const add = (label: string, tone: ChipTone, text: string) => flags.push({ label, tone, text });
+
+  if (moved === "promoted") {
+    add("Promoted", "edited", "You moved this deal into the Top deals in this session; it is scored like a Top deal."
+      + " Move to Longtail or Reset to Baseline undoes it.");
+  }
+  if (moved === "demoted") {
+    add("Moved to Longtail", "edited", "You moved this deal out of the Top deals in this session; it now uses its"
+      + " stage probability. Promote to Top or Reset to Baseline undoes it.");
+  }
 
   if (deal.flags.includes("past_due")) {
     add("Past due", "danger", `Close date ${deal.close_date} is before ${forecast.meta.as_of} but the deal is still open.`

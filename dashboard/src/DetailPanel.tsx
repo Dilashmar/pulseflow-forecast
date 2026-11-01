@@ -2,47 +2,71 @@ import { useEffect, useRef } from "react";
 
 import type { DealDetail } from "./dealDetail";
 import type { Pillar } from "./forecast";
+import { ScoreSelects } from "./ScoreSelects";
 import type { Deal } from "./types";
-
-const PILLARS: { key: Pillar; label: string }[] = [
-  { key: "leadership", label: "Leadership" },
-  { key: "commercial", label: "Commercial" },
-  { key: "contractual", label: "Contractual" },
-];
-const SCORE_OPTIONS = [1, 2, 3, 4];
 
 interface DetailPanelProps {
   detail: DealDetail;
   onScoreChange: (deal: Deal, pillar: Pillar, value: number) => void;
   onClose: () => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  onMove: (deal: Deal, kind: "promote" | "demote") => void;
 }
 
-export function DetailPanel({ detail, onScoreChange, onClose }: DetailPanelProps) {
+export function DetailPanel(props: DetailPanelProps) {
+  const { detail, onScoreChange, onClose, collapsed, onCollapsedChange, onMove } = props;
   const { deal } = detail;
+  const name = deal.customer ?? deal.deal_id;
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Esc closes the panel; focus moves to it when a new deal opens.
+  // Esc closes the panel; focus moves to it when a deal opens or the panel expands.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  useEffect(() => { closeRef.current?.focus(); }, [deal.deal_id]);
+  useEffect(() => { if (!collapsed) closeRef.current?.focus(); }, [deal.deal_id, collapsed]);
 
-  const original = { leadership: deal.leadership_score, commercial: deal.commercial_score, contractual: deal.contractual_score };
+  if (collapsed) {
+    // Thin rail: the selected deal's name, sideways. Click to expand.
+    return (
+      <aside className="detail-panel rail" aria-label={`Details for ${name} (collapsed)`}>
+        <button type="button" className="rail-button" aria-label="Expand details" title="Expand details"
+          onClick={() => onCollapsedChange(false)}>
+          «
+        </button>
+        <button type="button" className="rail-name" title={`Expand details for ${name}`} onClick={() => onCollapsedChange(false)}>
+          {name}
+        </button>
+        <button type="button" className="rail-button" aria-label="Close details" title="Close details" onClick={onClose}>
+          ×
+        </button>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="detail-panel" aria-label={`Details for ${deal.customer ?? deal.deal_id}`}>
+    <aside className="detail-panel" aria-label={`Details for ${name}`}>
       <header className="detail-header">
         <div>
           <p className="detail-eyebrow">
             <span className={`bucket bucket-${detail.isTop ? "top" : "longtail"}`}>{detail.isTop ? "Top" : "Longtail"}</span>
             {detail.edited && <span className="edited-badge">Edited</span>}
           </p>
-          <h2>{deal.customer ?? deal.deal_id}</h2>
+          <h2>{name}</h2>
           <p className="detail-id">{deal.deal_id} · {deal.source}</p>
         </div>
-        <button ref={closeRef} type="button" className="icon-button" aria-label="Close details" onClick={onClose}>×</button>
+        <div className="detail-header-actions">
+          <button type="button" className="icon-button" aria-label="Collapse details" title="Collapse details"
+            onClick={() => onCollapsedChange(true)}>
+            »
+          </button>
+          <button ref={closeRef} type="button" className="icon-button" aria-label="Close details" title="Close details"
+            onClick={onClose}>
+            ×
+          </button>
+        </div>
       </header>
 
       <dl className="detail-facts">
@@ -57,20 +81,7 @@ export function DetailPanel({ detail, onScoreChange, onClose }: DetailPanelProps
       <section className="detail-section">
         <h3>How the expected value is calculated</h3>
         {detail.scores && (
-          <div className="score-editor">
-            {PILLARS.map((p) => (
-              <label key={p.key} className="score-field">
-                <span>{p.label}</span>
-                <select
-                  value={detail.scores![p.key]}
-                  className={detail.scores![p.key] !== original[p.key] ? "changed" : undefined}
-                  onChange={(e) => onScoreChange(deal, p.key, Number(e.target.value))}
-                >
-                  {SCORE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
+          <ScoreSelects deal={deal} scores={detail.scores} onChange={onScoreChange} variant="labeled" />
         )}
         <ol className="calc">
           {detail.gpaLine && <li>{detail.gpaLine}</li>}
@@ -78,6 +89,17 @@ export function DetailPanel({ detail, onScoreChange, onClose }: DetailPanelProps
           <li className="calc-result">{detail.expectedValueLine}</li>
         </ol>
         {detail.vpLine && <p className="vp-line">{detail.vpLine}</p>}
+        <div className="move-action">
+          <button
+            type="button"
+            className="button"
+            aria-describedby="move-action-note"
+            onClick={() => onMove(deal, detail.moveAction.kind)}
+          >
+            {detail.moveAction.label}
+          </button>
+          <p id="move-action-note" className="move-note">{detail.moveAction.note}</p>
+        </div>
       </section>
 
       {detail.vpNotes && (

@@ -8,11 +8,17 @@ import type { Bucket, Deal, ForecastFile, Scores, Settings } from "./types";
 export type Pillar = keyof Scores;
 
 export interface Scenario {
-  edits: Record<string, Scores>; // deal_id -> edited scores (only deals that differ from the pipeline)
+  // deal_id -> scores that differ from the pipeline's. A promoted deal always has
+  // an entry here (its scores start at settings.promote_scores).
+  edits: Record<string, Scores>;
   vpOverride: boolean;
+  // deal_id -> bucket, only for deals moved away from the pipeline's bucket (SPEC 3.6).
+  moves?: Record<string, Bucket>;
 }
 
-export const BASELINE: Scenario = { edits: {}, vpOverride: false };
+export const BASELINE: Scenario = { edits: {}, vpOverride: false, moves: {} };
+
+export type Moved = "promoted" | "demoted" | null;
 
 // none: the sheet agrees with the formula. available: it differs, toggle off.
 // applied: toggle on, sheet's probability used. not_applied_edited: toggle on,
@@ -27,8 +33,9 @@ export interface DealResult {
   gpaX100: number | null;
   probability: number; // the one used for expected value
   evCents: number;
-  edited: boolean;
+  edited: boolean; // scores differ from where this deal's scoring started
   vpOverride: VpOverrideStatus;
+  moved: Moved;
 }
 
 export interface TotalsCents {
@@ -90,36 +97,42 @@ export function pipelineScores(deal: Deal): Scores | null {
 export function computeDeal(deal: Deal, scenario: Scenario, settings: Settings): DealResult {
   if (deal.bucket === null) throw new Error(`${deal.deal_id} is not in the forecast`);
   const line = productLine(deal.product, settings);
+  const bucket = scenario.moves?.[deal.deal_id] ?? deal.bucket;
+  const moved: Moved = bucket === deal.bucket ? null : bucket === "Top" ? "promoted" : "demoted";
 
-  if (deal.bucket === "Longtail") {
+  if (bucket === "Longtail") {
+    // Longtail (or demoted from Top): its stage probability.
     return {
       deal, bucket: "Longtail", productLine: line, scores: null, gpaX100: null,
       probability: deal.stage_probability,
       evCents: expectedValueCents(deal.annual_acv, deal.stage_probability),
-      edited: false, vpOverride: "none",
+      edited: false, vpOverride: "none", moved,
     };
   }
 
-  const original = pipelineScores(deal)!;
+  // Where this deal's scoring starts: the VP's scores, or the promote scores for a promoted deal.
+  const original = moved === "promoted" ? settings.promote_scores : pipelineScores(deal)!;
   const edit = scenario.edits[deal.deal_id];
   const scores = edit ?? original;
+  const edited = !sameScores(scores, original);
   const x100 = gpaX100(scores, settings.gpa_weights);
   const formulaProbability = winProbability(x100, settings.win_probability_cutoffs);
 
-  // The VP's number is a judgment on the original scores: it applies only while they're unedited.
+  // The VP's number is a judgment on the original scores: it applies only while they're
+  // unedited. A promoted deal has no VP number.
   const originalProbability = winProbability(gpaX100(original, settings.gpa_weights), settings.win_probability_cutoffs);
-  const sheetDiffers = deal.vp_win_probability !== null && deal.vp_win_probability !== originalProbability;
+  const sheetDiffers = moved === null && deal.vp_win_probability !== null && deal.vp_win_probability !== originalProbability;
   let vpOverride: VpOverrideStatus = "none";
   if (sheetDiffers) {
     if (!scenario.vpOverride) vpOverride = "available";
-    else vpOverride = edit ? "not_applied_edited" : "applied";
+    else vpOverride = edited ? "not_applied_edited" : "applied";
   }
   const probability = vpOverride === "applied" ? deal.vp_win_probability! : formulaProbability;
 
   return {
     deal, bucket: "Top", productLine: line, scores, gpaX100: x100, probability,
     evCents: expectedValueCents(deal.annual_acv, probability),
-    edited: edit !== undefined, vpOverride,
+    edited, vpOverride, moved,
   };
 }
 
@@ -162,14 +175,46 @@ export function computeTotals(forecast: ForecastFile, scenario: Scenario): Total
 // --- What-if changes (SPEC 3.6) ---------------------------------------------------
 
 export function setScore(scenario: Scenario, deal: Deal, pillar: Pillar, value: number): Scenario {
+  const promoted = scenario.moves?.[deal.deal_id] === "Top" && deal.bucket !== "Top";
   const original = pipelineScores(deal);
-  if (!original) throw new Error(`${deal.deal_id} has no scores to edit`);
-  const scores = { ...(scenario.edits[deal.deal_id] ?? original), [pillar]: value };
+  const current = scenario.edits[deal.deal_id] ?? original;
+  if (!current) throw new Error(`${deal.deal_id} has no scores to edit`);
+  const scores = { ...current, [pillar]: value };
   const edits = { ...scenario.edits };
-  // An edit that puts every score back to the pipeline's value is no longer an edit.
-  if (sameScores(scores, original)) delete edits[deal.deal_id];
+  // A promoted deal always keeps its scores here. For a pipeline Top deal, an edit
+  // that puts every score back to the pipeline's value is no longer an edit.
+  if (!promoted && original && sameScores(scores, original)) delete edits[deal.deal_id];
   else edits[deal.deal_id] = scores;
   return { ...scenario, edits };
+}
+
+/** Longtail -> Top at settings.promote_scores; or undo a demotion (back to the pipeline's scores). */
+export function promote(scenario: Scenario, deal: Deal, settings: Settings): Scenario {
+  const moves = { ...scenario.moves };
+  const edits = { ...scenario.edits };
+  if (deal.bucket === "Top") {
+    delete moves[deal.deal_id];
+    delete edits[deal.deal_id];
+  } else {
+    moves[deal.deal_id] = "Top";
+    edits[deal.deal_id] = { ...settings.promote_scores };
+  }
+  return { ...scenario, moves, edits };
+}
+
+/** Top -> Longtail at its stage probability (score edits dropped); or undo a promotion. */
+export function demote(scenario: Scenario, deal: Deal): Scenario {
+  const moves = { ...scenario.moves };
+  const edits = { ...scenario.edits };
+  if (deal.bucket === "Top") moves[deal.deal_id] = "Longtail";
+  else delete moves[deal.deal_id];
+  delete edits[deal.deal_id];
+  return { ...scenario, moves, edits };
+}
+
+/** More Top deals than the usual limit is allowed, but shows a warning (SPEC 3.6). */
+export function overTopLimit(totals: TotalsCents, settings: Settings): boolean {
+  return totals.topCount > settings.top_deal_limit;
 }
 
 export function setVpOverride(scenario: Scenario, on: boolean): Scenario {
@@ -181,7 +226,9 @@ export function reset(): Scenario {
 }
 
 export function isChanged(scenario: Scenario): boolean {
-  return scenario.vpOverride || Object.keys(scenario.edits).length > 0;
+  return scenario.vpOverride
+    || Object.keys(scenario.edits).length > 0
+    || Object.keys(scenario.moves ?? {}).length > 0;
 }
 
 function sameScores(a: Scores, b: Scores): boolean {

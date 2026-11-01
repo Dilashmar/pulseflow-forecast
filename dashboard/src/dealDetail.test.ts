@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { audit, forecast } from "./data";
 import { dealDetail } from "./dealDetail";
-import { BASELINE, setScore, setVpOverride } from "./forecast";
+import { BASELINE, demote, promote, setScore, setVpOverride } from "./forecast";
 
 const deal = (id: string) => forecast.deals.find((d) => d.deal_id === id)!;
 const detail = (id: string, scenario = BASELINE) => dealDetail(deal(id), scenario, forecast, audit);
@@ -103,5 +103,45 @@ describe("this deal's audit entries", () => {
 
   it("a deal with no issues has none", () => {
     expect(detail("006PF000001L015YAC").auditEntries).toEqual([]);
+  });
+});
+
+describe("promote / move to Longtail in the panel", () => {
+  const settings = forecast.settings;
+
+  it("a Longtail deal offers Promote to Top, starting at the promote scores", () => {
+    const d = detail("006PF000001L013YAC"); // Kestrel
+    expect(d.moveAction).toEqual({
+      kind: "promote",
+      label: "Promote to Top",
+      note: "Starts at scores 3 / 3 / 3 (GPA 3.00 → 50%)",
+    });
+  });
+
+  it("a Top deal offers Move to Longtail at its stage probability", () => {
+    expect(detail("006PF000001T008YAC").moveAction).toEqual({ // Halcyon, Introduction 20%
+      kind: "demote",
+      label: "Move to Longtail",
+      note: "Goes back to its stage probability (20% for Introduction)",
+    });
+  });
+
+  it("after promotion: scores, GPA lines and a Promoted flag; the action becomes Move to Longtail", () => {
+    const d = detail("006PF000001L013YAC", promote(BASELINE, deal("006PF000001L013YAC"), settings));
+    expect(d.isTop).toBe(true);
+    expect(d.scores).toEqual({ leadership: 3, commercial: 3, contractual: 3 });
+    expect(d.gpaLine).toBe("GPA = 0.20 × 3 + 0.20 × 3 + 0.60 × 3 = 3.00");
+    expect(d.expectedValueLine).toBe("Expected value = $500K × 50% = $250K");
+    expect(d.flags.map((f) => f.label)).toContain("Promoted");
+    expect(d.moveAction.kind).toBe("demote");
+  });
+
+  it("after demotion: stage probability and a Moved to Longtail flag", () => {
+    const d = detail("006PF000001T008YAC", demote(BASELINE, deal("006PF000001T008YAC")));
+    expect(d.isTop).toBe(false);
+    expect(d.probabilityLine).toBe("20% win probability: the stage probability for Introduction");
+    expect(d.flags.map((f) => f.label)).toContain("Moved to Longtail");
+    expect(d.moveAction.kind).toBe("promote");
+    expect(d.moveAction.note).toBe("Goes back to its VP scores 2 / 1 / 1 (GPA 1.20 → 10%)");
   });
 });

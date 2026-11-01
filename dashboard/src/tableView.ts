@@ -39,9 +39,9 @@ export function filterOptions(rows: DealRoomRow[]) {
   };
 }
 
-export function isFiltered(filters: Filters, search: string): boolean {
-  return filters.products.length > 0 || filters.rep !== null || filters.buckets.length > 0
-    || filters.flags.length > 0 || search.trim() !== "";
+/** Number of ticked filter options (search is not counted). */
+export function activeFilterCount(filters: Filters): number {
+  return filters.products.length + (filters.rep === null ? 0 : 1) + filters.buckets.length + filters.flags.length;
 }
 
 /** Filter (every group must pass; within a group any ticked option counts), search, then sort. */

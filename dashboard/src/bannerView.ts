@@ -2,7 +2,7 @@
 // forecast.json's deals for the current what-if scenario, so the banner
 // updates instantly. Kept apart from the component so it can be tested.
 
-import { computeTotals, setVpOverride, type Scenario } from "./forecast";
+import { computeTotals, overTopLimit, setVpOverride, type Scenario } from "./forecast";
 import { money, percent, signedMoney } from "./format";
 import type { ForecastFile } from "./types";
 
@@ -33,6 +33,7 @@ export interface BannerView {
   pastDue: string;
   vpOverrideOn: boolean;
   vpOverride: string;
+  topWarning: string | null; // more Top deals than the usual limit (SPEC 3.6)
 }
 
 // Leave room past the larger of total and target so the marker never sits on the edge.
@@ -78,5 +79,9 @@ export function bannerView(forecast: ForecastFile, scenario: Scenario): BannerVi
     pastDue: `Past-due exposure: ${money(dollars(totals.pastDueExposure))} on ${pastDueDeals} deals`,
     vpOverrideOn: scenario.vpOverride,
     vpOverride: vpText,
+    topWarning: overTopLimit(totals, forecast.settings)
+      ? `${totals.topCount} Top deals: more than the usual ${forecast.settings.top_deal_limit}.`
+        + " Allowed for what-if; review before presenting."
+      : null,
   };
 }

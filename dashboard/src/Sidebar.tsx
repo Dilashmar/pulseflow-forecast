@@ -1,13 +1,13 @@
 import type { FlagKey } from "./dealRoomRows";
-import { FLAG_FILTERS, NO_FILTERS, type Filters } from "./tableView";
+import { FLAG_FILTERS, NO_FILTERS, activeFilterCount, type Filters } from "./tableView";
 import type { Bucket } from "./types";
 
 export type Tab = "deal-room" | "what-changed" | "data-audit";
 
-export const TABS: { key: Tab; label: string }[] = [
-  { key: "deal-room", label: "Deal Room" },
-  { key: "what-changed", label: "What Changed" },
-  { key: "data-audit", label: "Data Audit" },
+export const TABS: { key: Tab; label: string; short: string }[] = [
+  { key: "deal-room", label: "Deal Room", short: "DR" },
+  { key: "what-changed", label: "What Changed", short: "WC" },
+  { key: "data-audit", label: "Data Audit", short: "DA" },
 ];
 
 const BUCKETS: Bucket[] = ["Top", "Longtail"];
@@ -18,14 +18,66 @@ interface SidebarProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   options: { products: string[]; reps: string[] };
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ tab, onTabChange, filters, onFiltersChange, options }: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  const { tab, onTabChange, filters, onFiltersChange, options, collapsed, onCollapsedChange } = props;
   const toggle = <T,>(list: T[], value: T) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-  const hasFilters = filters.products.length + filters.buckets.length + filters.flags.length > 0 || filters.rep !== null;
+  const filterCount = activeFilterCount(filters);
+  const hasFilters = filterCount > 0;
+
+  if (collapsed) {
+    // Narrow rail: tabs as short labels, a Filters button with the active count, and expand.
+    return (
+      <aside className="sidebar rail" aria-label="Sidebar (collapsed)">
+        <button type="button" className="rail-button" aria-label="Expand sidebar" title="Expand sidebar"
+          onClick={() => onCollapsedChange(false)}>
+          »
+        </button>
+        <nav aria-label="Tabs">
+          <ul className="rail-list">
+            {TABS.map((t) => (
+              <li key={t.key}>
+                <button
+                  type="button"
+                  className={`rail-button rail-tab${tab === t.key ? " active" : ""}`}
+                  aria-label={t.label}
+                  aria-current={tab === t.key ? "page" : undefined}
+                  title={t.label}
+                  onClick={() => onTabChange(t.key)}
+                >
+                  {t.short}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {tab === "deal-room" && (
+          <button
+            type="button"
+            className="rail-button rail-filters"
+            aria-label={hasFilters ? `Filters: ${filterCount} active. Expand sidebar` : "Filters. Expand sidebar"}
+            title="Filters"
+            onClick={() => onCollapsedChange(false)}
+          >
+            <span aria-hidden="true">⚲</span>
+            {hasFilters && <span className="badge">{filterCount}</span>}
+          </button>
+        )}
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-top">
+        <button type="button" className="rail-button" aria-label="Collapse sidebar" title="Collapse sidebar"
+          onClick={() => onCollapsedChange(true)}>
+          «
+        </button>
+      </div>
       <nav aria-label="Tabs">
         <ul className="nav-list">
           {TABS.map((t) => (

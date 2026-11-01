@@ -48,6 +48,16 @@ export function Banner({ view, onVpOverrideChange }: BannerProps) {
         ))}
       </div>
 
+      {/* Always present (empty when fine) so screen readers announce the warning when it appears. */}
+      <div className="top-warning-slot" role="status" aria-live="polite">
+        {view.topWarning && (
+          <p className="top-warning">
+            <span className="top-warning-icon" aria-hidden="true">!</span>
+            {view.topWarning}
+          </p>
+        )}
+      </div>
+
       <div className="warnings">
         <span>{view.pastDue}</span>
         <span className="warnings-separator" aria-hidden="true">·</span>

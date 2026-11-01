@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { bannerView } from "./bannerView";
 import { forecast } from "./data";
-import { BASELINE, setScore, setVpOverride } from "./forecast";
+import { BASELINE, promote, setScore, setVpOverride } from "./forecast";
 
 describe("banner, baseline (numbers recomputed from forecast.json's deals)", () => {
   const view = bannerView(forecast, BASELINE);
@@ -74,5 +74,21 @@ describe("banner follows what-if changes", () => {
     expect(view.variance).toBe("−$5.09M");
     expect(view.percentOfTarget).toBe("57.6% of target");
     expect(view.onTarget).toBe(false);
+  });
+});
+
+describe("more-than-8 warning, under the tiles", () => {
+  const kestrel = forecast.deals.find((d) => d.deal_id === "006PF000001L013YAC")!;
+
+  it("none at baseline", () => {
+    expect(bannerView(forecast, BASELINE).topWarning).toBeNull();
+  });
+
+  it("shown with 9 Top deals; tiles follow", () => {
+    const view = bannerView(forecast, promote(BASELINE, kestrel, forecast.settings));
+    expect(view.topWarning).toBe("9 Top deals: more than the usual 8. Allowed for what-if; review before presenting.");
+    expect(view.tiles[0]).toEqual({ label: "Top deals", value: "$8.09M", count: "9 deals" });
+    expect(view.tiles[1]).toEqual({ label: "Core Longtail", value: "$4.05M", count: "19 deals" });
+    expect(view.total).toBe("$13.13M");
   });
 });

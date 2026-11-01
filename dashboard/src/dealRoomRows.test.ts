@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { forecast } from "./data";
+import { audit, forecast } from "./data";
+import { dealDetail } from "./dealDetail";
 import { dealRoomRows } from "./dealRoomRows";
-import { BASELINE, setScore, setVpOverride } from "./forecast";
+import { BASELINE, demote, promote, setScore, setVpOverride } from "./forecast";
 
 const row = (rows: ReturnType<typeof dealRoomRows>, id: string) => rows.find((r) => r.dealId === id)!;
 
@@ -54,5 +55,44 @@ describe("Deal Room rows", () => {
     expect(row(edited, "006PF000001T007YAC").expectedValue).toBe("$600K");
     expect(edited.filter((r) => r.edited)).toHaveLength(1);
     expect(edited.map((r) => r.dealId)).toEqual(rows.map((r) => r.dealId));
+  });
+
+  it("table and detail panel show the same scores after an edit (kept in sync)", () => {
+    const starlight = forecast.deals.find((d) => d.deal_id === "006PF000001T007YAC")!;
+    const scenario = setScore(BASELINE, starlight, "contractual", 3);
+    const tableScores = row(dealRoomRows(forecast, scenario), "006PF000001T007YAC").scores;
+    const panelScores = dealDetail(starlight, scenario, forecast, audit).scores;
+    expect(tableScores).toEqual({ leadership: 2, commercial: 2, contractual: 3 });
+    expect(panelScores).toEqual(tableScores);
+  });
+
+  it("only Top deals have scores to edit", () => {
+    expect(rows.filter((r) => r.scores !== null).map((r) => r.isTop)).toEqual(Array(8).fill(true));
+  });
+});
+
+describe("promoted and demoted rows", () => {
+  const kestrel = forecast.deals.find((d) => d.deal_id === "006PF000001L013YAC")!;
+  const halcyon = forecast.deals.find((d) => d.deal_id === "006PF000001T008YAC")!;
+
+  it("a promoted deal gets inline scores and a Promoted chip, and moves into the Top group", () => {
+    const moved = dealRoomRows(forecast, promote(BASELINE, kestrel, forecast.settings));
+    const k = row(moved, "006PF000001L013YAC");
+    expect(k.isTop).toBe(true);
+    expect(k.scores).toEqual({ leadership: 3, commercial: 3, contractual: 3 });
+    expect(k.chips.map((c) => c.label)).toContain("Promoted");
+    expect(k.flagKeys).toContain("edited");
+    expect(moved.slice(0, 9).map((r) => r.isTop)).toEqual(Array(9).fill(true));
+    expect(moved[8].dealId).toBe("006PF000001L013YAC"); // after the 8 ranked Top deals
+  });
+
+  it("a demoted deal loses its scores, gets a Moved to Longtail chip, and moves into Longtail", () => {
+    const moved = dealRoomRows(forecast, demote(BASELINE, halcyon));
+    const h = row(moved, "006PF000001T008YAC");
+    expect(h.isTop).toBe(false);
+    expect(h.scores).toBeNull();
+    expect(h.chips.map((c) => c.label)).toContain("Moved to Longtail");
+    expect(moved.slice(0, 7).every((r) => r.isTop)).toBe(true);
+    expect(moved.slice(7).every((r) => !r.isTop)).toBe(true);
   });
 });

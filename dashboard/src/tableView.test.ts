@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { forecast } from "./data";
 import { dealRoomRows } from "./dealRoomRows";
-import { NO_FILTERS, filterOptions, summary, visibleRows, type Filters } from "./tableView";
+import { NO_FILTERS, activeFilterCount, filterOptions, summary, visibleRows, type Filters } from "./tableView";
 import { BASELINE, setScore } from "./forecast";
 
 const rows = dealRoomRows(forecast, BASELINE);
@@ -46,6 +46,14 @@ describe("filters", () => {
     expect(options.products).toEqual(["BedFlow", "CareBridge", "InfusionIQ", "PulseOR"]);
     expect(options.reps).toContain("Clara Oswald");
     expect(options.reps).toContain("Dax Shepherdson");
+  });
+});
+
+describe("active filter count (shown on the collapsed sidebar and in the toolbar)", () => {
+  it("counts each ticked option; search is not a filter", () => {
+    expect(activeFilterCount(NO_FILTERS)).toBe(0);
+    expect(activeFilterCount({ products: ["PulseOR", "BedFlow"], rep: "Clara Oswald", buckets: [], flags: ["past_due"] })).toBe(4);
+    expect(activeFilterCount({ ...NO_FILTERS, buckets: ["Top"] })).toBe(1);
   });
 });
 
