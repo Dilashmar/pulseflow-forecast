@@ -82,6 +82,7 @@ export interface AuditRecord {
 
 export interface AuditEntry {
   check: string;
+  title: string; // plain-English name shared by the rule's entries; the Data Audit tab groups by it
   kind: "Fix" | "Flag" | "Decision" | "Needs review" | "Note";
   records: AuditRecord[];
   what_was_wrong: string;
@@ -109,6 +110,7 @@ export interface ForecastFile {
     forecast_quarter: string;
     board_target: number;
     input_files: Record<string, string>;
+    input_fingerprints: Record<string, string>; // SHA-256 per input file (pipeline's prior-week check)
     ev_basis: string;
   };
   settings: Settings;

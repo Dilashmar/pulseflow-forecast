@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 
+import { auditView } from "./auditView";
 import { Banner } from "./Banner";
 import { bannerView } from "./bannerView";
 import { audit, forecast, weekOverWeek } from "./data";
 import { dealDetail } from "./dealDetail";
+import { DataAudit } from "./DataAudit";
 import { dealRoomRows } from "./dealRoomRows";
 import { DealTable } from "./DealTable";
 import { NO_FILTERS, activeFilterCount, filterOptions, summary, visibleRows, type Filters, type Sort } from "./tableView";
@@ -11,13 +13,14 @@ import { DetailPanel } from "./DetailPanel";
 import {
   BASELINE, demote, isChanged, promote, reset, setScore, setVpOverride, type Pillar, type Scenario,
 } from "./forecast";
-import { Sidebar, TABS, type Tab } from "./Sidebar";
+import { Sidebar, type Tab } from "./Sidebar";
 import type { Deal } from "./types";
 import { WhatChanged } from "./WhatChanged";
 import { whatChangedView } from "./whatChangedView";
 
-// Week over week doesn't change with the what-if scenario: work it out once.
+// Week over week and the audit log don't change with the what-if scenario: work them out once.
 const changesView = whatChangedView(weekOverWeek);
+const dataAuditView = auditView(audit, forecast);
 
 export function App() {
   // The what-if scenario: score edits and the VP override toggle. Everything on
@@ -48,7 +51,7 @@ export function App() {
   const rows = dealRoomRows(forecast, scenario);
   const shown = visibleRows(rows, filters, search, sort);
   // Any deal in forecast.json can open the panel, including ones not in the forecast (read-only).
-  const selected = tab === "data-audit" ? undefined : forecast.deals.find((d) => d.deal_id === selectedId);
+  const selected = forecast.deals.find((d) => d.deal_id === selectedId);
 
   const shellClasses = [
     "shell",
@@ -97,10 +100,7 @@ export function App() {
         ) : tab === "what-changed" ? (
           <WhatChanged view={changesView} selectedId={selectedId} onSelect={selectDeal} />
         ) : (
-          <section className="card placeholder">
-            <h2>{TABS.find((t) => t.key === tab)!.label}</h2>
-            <p className="muted">Coming next.</p>
-          </section>
+          <DataAudit view={dataAuditView} selectedId={selectedId} onSelect={selectDeal} />
         )}
       </main>
 

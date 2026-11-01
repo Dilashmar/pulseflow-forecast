@@ -17,11 +17,12 @@ export interface FlagExplained extends Chip {
 
 export interface AuditLine {
   check: string;
+  title: string;
   kind: AuditEntry["kind"];
   whatWasWrong: string;
   resolution: string;
-  impact: string;
-  atRisk: string | null;
+  impact: string | null; // judgment calls only (SPEC 6.4); every amount stays in audit_log.json
+  atRisk: string | null; // judgment calls only
   reasoning: string | null;
 }
 
@@ -214,17 +215,22 @@ function flagsExplained(
   return flags;
 }
 
-/** Audit entries naming this deal, by full ID or by its 15-character match key (D3, VP rows). */
+/** Audit entries naming this deal, by full ID or by its 15-character match key (D3, VP rows).
+ *  Dollars only on judgment calls: fixes are already applied, so their amount doesn't lead to a decision. */
 function auditFor(deal: Deal, audit: AuditFile): AuditLine[] {
   return audit.entries
     .filter((e) => e.records.some((r) => r.deal_id !== null && (r.deal_id === deal.deal_id || r.deal_id === deal.match_key)))
-    .map((e) => ({
-      check: e.check,
-      kind: e.kind,
-      whatWasWrong: e.what_was_wrong,
-      resolution: e.resolution,
-      impact: e.impact === 0 ? "$0" : signedMoney(e.impact),
-      atRisk: e.at_risk ? money(e.at_risk) : null,
-      reasoning: e.reasoning,
-    }));
+    .map((e) => {
+      const decision = e.kind === "Decision";
+      return {
+        check: e.check,
+        title: e.title,
+        kind: e.kind,
+        whatWasWrong: e.what_was_wrong,
+        resolution: e.resolution,
+        impact: decision && e.impact !== 0 ? signedMoney(e.impact) : null,
+        atRisk: decision && e.at_risk ? money(e.at_risk) : null,
+        reasoning: e.reasoning,
+      };
+    });
 }

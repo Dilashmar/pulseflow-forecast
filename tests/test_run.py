@@ -2,8 +2,10 @@
 
 import json
 import re
+import shutil
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,7 @@ from tests.helpers import copy_fixtures, edit_vp_cell, read_rows, write_rows
 REPO = Path(__file__).resolve().parents[1]
 OUTPUT_FILES = ["forecast.json", "audit_log.json", "week_over_week.json"]
 SF_CURRENT = config.FILES["sf_current"]
+SF_PRIOR = config.FILES["sf_prior"]
 VP = config.FILES["vp_scorecard"]
 HALCYON_VP_ROW = 7
 
@@ -138,10 +141,38 @@ def test_audit_log(written):
     assert audit["summary"]["total_impact_net"] == sum(e["impact"] for e in entries)
 
     (d5,) = [e for e in entries if e["check"] == "D5"]
+    assert d5["title"] == "VP override"
     assert d5["kind"] == "Decision"
     assert d5["impact"] == 550000
     assert d5["reasoning"]
     assert d5["records"][0]["source_file"] == VP
+
+
+def test_audit_titles_group_entries_in_plain_english(written):
+    # The Data Audit tab groups entries by title (SPEC 6.4).
+    entries = written["audit_log.json"]["entries"]
+    assert Counter(e["title"] for e in entries) == {
+        "Monthly billing converted to annual": 7,
+        "Short Salesforce IDs matched": 6,
+        "Outside the forecast quarter, left out": 5,
+        "Past-due deals": 4,
+        "VP rows matched by name": 4,
+        "VP sheet matched by short ID": 4,
+        "Columns missing from a file": 3,
+        "Duplicate rows removed": 2,
+        "Closed Lost deals left out": 2,
+        "Conflicting versions, kept the latest": 1,
+        "Duplicate across Salesforce and HubSpot": 1,
+        "VP override": 1,
+    }
+
+
+def test_audit_titles_name_rules_not_deals(written):
+    data = written["forecast.json"]
+    names = {d["customer"] for d in data["deals"] if d["customer"]}
+    ids = {d["deal_id"] for d in data["deals"]} | {d["match_key"] for d in data["deals"]}
+    for e in written["audit_log.json"]["entries"]:
+        assert not any(n in e["title"] for n in names | ids), e["title"]
 
 
 # --- week_over_week.json --------------------------------------------------------
@@ -219,6 +250,87 @@ def test_same_input_gives_identical_files(data_dir, tmp_path):
     assert run(data_dir, second) == 0
     for name in OUTPUT_FILES:
         assert (first / name).read_bytes() == (second / name).read_bytes(), name
+
+
+# --- --as-of: the date past-due is measured against --------------------------------
+
+def test_as_of_defaults_to_config_and_is_printed_first(data_dir, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    assert capsys.readouterr().out.splitlines()[0] == "As of 2026-10-15 (from config.py)"
+
+
+def test_as_of_option_moves_past_due(data_dir, out_dir, capsys):
+    # As of 10-09 only Hyperion (closes 10-05) and HS-9004 (10-08) are past due: $360K + $72K.
+    assert main(["--data", str(data_dir), "--out", str(out_dir), "--as-of", "2026-10-09"]) == 0
+    assert capsys.readouterr().out.splitlines()[0] == "As of 2026-10-09 (from --as-of)"
+    data = read(out_dir, "forecast.json")
+    assert data["meta"]["as_of"] == "2026-10-09"
+    assert sorted(d["deal_id"] for d in data["deals"] if "past_due" in d["flags"]) == ["006PF000001L001YAC", "HS-9004"]
+    assert data["totals"]["formula"]["past_due_exposure"] == 432000
+    assert data["totals"]["formula"]["total"] == 13182400  # past-due deals still count
+
+
+def test_bad_as_of_stops_and_writes_nothing(data_dir, out_dir, capsys):
+    assert main(["--data", str(data_dir), "--out", str(out_dir), "--as-of", "15/10/2026"]) == 1
+    assert "--as-of" in capsys.readouterr().err
+    assert not out_dir.exists()
+
+
+def test_input_fingerprints_in_meta(written, data_dir):
+    import hashlib
+    fingerprints = written["forecast.json"]["meta"]["input_fingerprints"]
+    assert fingerprints == {
+        key: hashlib.sha256((data_dir / name).read_bytes()).hexdigest() for key, name in config.FILES.items()
+    }
+
+
+# --- Prior-week check: is the prior-week file last run's current file? ------------
+
+def next_week(data_dir, last_week_dir, dst):
+    """A following week: last week's current file becomes the prior week; one new deal this week."""
+    copy_fixtures(data_dir, dst)
+    shutil.copy(last_week_dir / SF_CURRENT, dst / SF_PRIOR)
+    rows = read_rows(dst / SF_CURRENT)
+    rows.append(["006PF000001N002YAC", "Q4-2026", "Northwind Regional", "BedFlow", "Introduction",
+                 "0.20", "500000", "Annual", "2026-12-01", "2026-10-20", "2", "Clara Oswald", "West"])
+    write_rows(dst / SF_CURRENT, rows)
+    return dst
+
+
+def test_no_warning_on_first_run_or_rerun(data_dir, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    assert run(data_dir, out_dir) == 0  # same week again
+    assert "Warning" not in capsys.readouterr().err
+
+
+def test_next_week_compares_neighbouring_weeks_without_warning(data_dir, tmp_path, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    week2 = next_week(data_dir, data_dir, tmp_path / "week2")
+    assert run(week2, out_dir) == 0
+    week3 = next_week(data_dir, week2, tmp_path / "week3")
+    rows = read_rows(week3 / SF_CURRENT)
+    rows[-1][rows[0].index("Stage")], rows[-1][rows[0].index("Stage_Probability")] = "Technical Validation", "0.40"
+    write_rows(week3 / SF_CURRENT, rows)  # this week, Northwind moved up a stage
+    assert run(week3, out_dir) == 0
+
+    assert "Warning" not in capsys.readouterr().err
+    counts = read(out_dir, "week_over_week.json")["counts"]
+    # Week 3 against week 2: only the stage move, not week 2's new deal again.
+    assert (counts["New Deals"], counts["Stage Moves"]) == (0, 1)
+
+
+def test_warning_when_prior_week_file_was_not_replaced(data_dir, work_dir, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    rows = read_rows(work_dir / SF_CURRENT)
+    rows.append(["006PF000001N002YAC", "Q4-2026", "Northwind Regional", "BedFlow", "Introduction",
+                 "0.20", "500000", "Annual", "2026-12-01", "2026-10-20", "2", "Clara Oswald", "West"])
+    write_rows(work_dir / SF_CURRENT, rows)  # new week's current file, but the old prior-week file left in place
+    capsys.readouterr()
+
+    assert run(work_dir, out_dir) == 0  # a warning, not a stop
+    err = capsys.readouterr().err
+    assert "Warning: the prior-week file" in err and SF_PRIOR in err
+    assert read(out_dir, "forecast.json")["totals"]["formula"]["total"] == 13282400
 
 
 # --- SPEC 7.1: no deal IDs or names in pipeline logic ---------------------------

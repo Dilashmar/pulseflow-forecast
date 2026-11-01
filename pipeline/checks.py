@@ -73,6 +73,7 @@ ACTION_KINDS = {
 @dataclass
 class AuditEntry:
     check: str              # "D1".."D13", or "4.1" for a missing/invalid value found while reading
+    title: str              # plain-English name of the rule's outcome, shared by its entries (dashboard groups by it)
     kind: str               # FIX, FLAG, DECISION, NEEDS_REVIEW or NOTE
     records: list           # [{source_file, source_row, deal_id, customer}]; source_row None = whole file
     what_was_wrong: str
@@ -89,7 +90,8 @@ class CheckResult:
     audit: list
 
 
-def run_checks(sf_current, sf_prior, hubspot, row_issues):
+def run_checks(sf_current, sf_prior, hubspot, row_issues, as_of=None):
+    """as_of: the date past-due is measured against (default config.AS_OF_DATE)."""
     audit = []
 
     sf_current = _remove_duplicate_rows(_as_deals(sf_current), audit, counts_in_forecast=True)
@@ -104,7 +106,7 @@ def run_checks(sf_current, sf_prior, hubspot, row_issues):
     _log_row_issues(row_issues, deals, audit)
     _check_product_line(deals, audit)
     _check_monthly_billing(deals, audit)
-    _check_past_due(deals, audit)
+    _check_past_due(deals, audit, as_of or config.AS_OF_DATE)
     _check_stage_probability(deals, audit)
     _check_fiscal_period(deals, audit)
 
@@ -144,6 +146,7 @@ def _log_row_issues(row_issues, deals, audit):
         if set_aside:
             audit.append(AuditEntry(
                 check="4.1",
+                title="Rows set aside for review",
                 kind=NEEDS_REVIEW,
                 records=[record],
                 what_was_wrong="; ".join(_describe(i) for i in issues),
@@ -157,6 +160,7 @@ def _log_row_issues(row_issues, deals, audit):
             kind = ACTION_KINDS[issue.action]
             audit.append(AuditEntry(
                 check="4.1",
+                title="Missing or unreadable values",
                 kind=kind,
                 records=[record],
                 what_was_wrong=_describe(issue),
@@ -178,6 +182,7 @@ def _check_product_line(deals, audit):
         if deal["in_forecast"] and product_line(deal["product"]) == OTHER:
             audit.append(AuditEntry(
                 check="4.1",
+                title="Products outside the known product lines",
                 kind=FLAG,
                 records=[_record(deal)],
                 what_was_wrong=f"Product {deal['product']!r} is not in a known product line",
@@ -204,6 +209,7 @@ def _remove_duplicate_rows(deals, audit, counts_in_forecast):
         first = first_seen[key]
         audit.append(AuditEntry(
             check="D1",
+            title="Duplicate rows removed",
             kind=FIX,
             records=[_record(first), _record(deal)],
             what_was_wrong=f"Row {deal['source_row']} is an exact copy of row {first['source_row']}",
@@ -245,6 +251,7 @@ def _remove_duplicate_rows(deals, audit, counts_in_forecast):
                           f"{keep['source_row']} (first in file) for now")
         audit.append(AuditEntry(
             check="D2",
+            title="Conflicting versions, kept the latest" if clear_latest else "Conflicting versions, latest unclear",
             kind=kind,
             records=[_record(v) for v in versions],
             what_was_wrong=(f"{len(versions)} versions of deal {deal['deal_id']} (rows {rows}) "
@@ -264,6 +271,7 @@ def _check_short_ids(salesforce_deals, audit):
         if len(deal["deal_id"]) == SALESFORCE_MATCH_KEY_LENGTH:
             audit.append(AuditEntry(
                 check="D3",
+                title="Short Salesforce IDs matched",
                 kind=NOTE,
                 records=[_record(deal)],
                 what_was_wrong=f"15-character ID {deal['deal_id']} (other files use the 18-character form)",
@@ -285,6 +293,7 @@ def _check_missing_fields(deals, audit, row_issues):
             if column is None:
                 audit.append(AuditEntry(
                     check="D13",
+                    title="Columns missing from a file",
                     kind=NOTE,
                     records=[{"source_file": file, "source_row": None, "deal_id": None, "customer": None}],
                     what_was_wrong=f"{source} has no {SALESFORCE_COLUMNS[field]} column",
@@ -309,6 +318,7 @@ def _check_missing_fields(deals, audit, row_issues):
                 kind, resolution = NOTE, "Left blank; no value invented"
             audit.append(AuditEntry(
                 check="D13",
+                title="Blank customer names" if field == "customer" else "Blank values, nothing invented",
                 kind=kind,
                 records=[_record(deal)],
                 what_was_wrong=f"Blank {column}",
@@ -329,6 +339,7 @@ def _check_excluded(deals, audit):
                 in_quarter = deal["fiscal_period"] == config.FORECAST_QUARTER
                 audit.append(AuditEntry(
                     check="D8",
+                    title="Closed Lost deals left out",
                     kind=FIX,
                     records=[_record(deal)],
                     what_was_wrong=f"Closed Lost but stage probability is {deal['stage_probability']:.0%}",
@@ -340,6 +351,7 @@ def _check_excluded(deals, audit):
             _exclude(deal, f"Outside {config.FORECAST_QUARTER} ({deal['fiscal_period']})")
             audit.append(AuditEntry(
                 check="D10",
+                title="Outside the forecast quarter, left out",
                 kind=FIX,
                 records=[_record(deal)],
                 what_was_wrong=f"Fiscal period is {deal['fiscal_period']}, not {config.FORECAST_QUARTER}",
@@ -378,6 +390,7 @@ def _check_cross_system_duplicates(deals, audit):
         hubspot["flags"].append("duplicate_merged")
         audit.append(AuditEntry(
             check="D6",
+            title="Duplicate across Salesforce and HubSpot",
             kind=DECISION,
             records=[_record(deal), _record(hubspot)],
             what_was_wrong=(f"Same deal in Salesforce ({deal['deal_id']}) and HubSpot "
@@ -402,6 +415,7 @@ def _check_monthly_billing(deals, audit):
         missing = (deal["annual_acv"] - deal["amount_raw"]) * deal["stage_probability"]
         audit.append(AuditEntry(
             check="D7",
+            title=f"{deal['billing_frequency']} billing converted to annual",
             kind=FIX,
             records=[_record(deal)],
             what_was_wrong=f"Amount {_money(deal['amount_raw'])} is billed {deal['billing_frequency'].lower()}",
@@ -413,16 +427,17 @@ def _check_monthly_billing(deals, audit):
 
 # --- D9: past due -------------------------------------------------------------
 
-def _check_past_due(deals, audit):
+def _check_past_due(deals, audit, as_of):
     # D9: open Q4 deal whose close date is before the as-of date. Keep; flag.
     for deal in deals:
-        if deal["in_forecast"] and deal["close_date"] is not None and deal["close_date"] < config.AS_OF_DATE:
+        if deal["in_forecast"] and deal["close_date"] is not None and deal["close_date"] < as_of:
             deal["flags"].append("past_due")
             audit.append(AuditEntry(
                 check="D9",
+                title="Past-due deals",
                 kind=DECISION,
                 records=[_record(deal)],
-                what_was_wrong=f"Close date {deal['close_date']} is before {config.AS_OF_DATE} but the deal is still open",
+                what_was_wrong=f"Close date {deal['close_date']} is before {as_of} but the deal is still open",
                 resolution="Kept in the forecast and flagged past due",
                 impact=ZERO,
                 at_risk=stage_expected_value(deal),
@@ -453,6 +468,7 @@ def _check_stage_probability(deals, audit):
         deal["flags"].append("stage_probability_mismatch")
         audit.append(AuditEntry(
             check="D11",
+            title="Stage probabilities that differ from the standard",
             kind=FLAG,
             records=[_record(deal)],
             what_was_wrong=wrong,
@@ -481,6 +497,7 @@ def _check_fiscal_period(deals, audit):
         deal["flags"].append("fiscal_period_mismatch")
         audit.append(AuditEntry(
             check="D12",
+            title="Fiscal period doesn't match the close date",
             kind=FLAG,
             records=[_record(deal)],
             what_was_wrong=(f"Fiscal period {deal['fiscal_period']} doesn't match close date "
@@ -530,6 +547,7 @@ def check_vp_scorecard(vp_rows, deals, row_issues):
             # D4: the VP still ranks it, but the deal doesn't count this quarter.
             audit.append(AuditEntry(
                 check="D4",
+                title="Top deals no longer active this quarter",
                 kind=FIX,
                 records=[_vp_record(vp), _record(deal)],
                 what_was_wrong=(f"VP row matches {deal['deal_id']}, which is not in the "
@@ -543,6 +561,7 @@ def check_vp_scorecard(vp_rows, deals, row_issues):
             # D4: no ID in the sheet, matched by name + product + rep.
             audit.append(AuditEntry(
                 check="D4",
+                title="VP rows matched by name",
                 kind=FIX,
                 records=[_vp_record(vp), _record(deal)],
                 what_was_wrong="VP row has no Opportunity ID",
@@ -556,6 +575,7 @@ def check_vp_scorecard(vp_rows, deals, row_issues):
             # the deal would sit in the Longtail at its stage probability.
             audit.append(AuditEntry(
                 check="D3",
+                title="VP sheet matched by short ID",
                 kind=FIX,
                 records=[_vp_record(vp), _record(deal)],
                 what_was_wrong=(f"VP sheet ID {vp['opportunity_id']} is the 15-character form of "
@@ -596,6 +616,7 @@ def _match_vp_row(vp, salesforce, by_match_key, audit):
         if vp["sales_rep"] is not None and not _same_text(vp["sales_rep"], deal["sales_rep"]):
             audit.append(AuditEntry(
                 check="D4",
+                title="VP sheet rep differs from Salesforce",
                 kind=NOTE,
                 records=[_vp_record(vp), _record(deal)],
                 what_was_wrong=f"Rep {vp['sales_rep']} differs from Salesforce rep {deal['sales_rep']}",
@@ -640,6 +661,7 @@ def _compare_to_sheet(vp, deal, audit):
                       - expected_value(deal["annual_acv"], formula_probability))
         audit.append(AuditEntry(
             check="D5",
+            title="VP override",
             kind=DECISION,
             records=records,
             what_was_wrong="; ".join(problems).capitalize(),
@@ -652,6 +674,7 @@ def _compare_to_sheet(vp, deal, audit):
     else:
         audit.append(AuditEntry(
             check="D5",
+            title="VP sheet GPA differs from the formula",
             kind=FLAG,
             records=records,
             what_was_wrong="; ".join(problems).capitalize(),
@@ -667,6 +690,7 @@ def _log_sheet_notes(row_issues, audit):
         if issue.action == Action.NOT_COMPARED:
             audit.append(AuditEntry(
                 check="D5",
+                title="VP sheet values unreadable",
                 kind=FLAG,
                 records=[{"source_file": issue.source_file, "source_row": issue.source_row,
                           "deal_id": issue.record, "customer": None}],
@@ -680,6 +704,7 @@ def _log_sheet_notes(row_issues, audit):
 def _vp_needs_review(vp, what_was_wrong, deals=(), resolution=NOT_TOP_REVIEW):
     return AuditEntry(
         check="D4",
+        title="VP rows that couldn't be matched",
         kind=NEEDS_REVIEW,
         records=[_vp_record(vp)] + [_record(d) for d in deals],
         what_was_wrong=what_was_wrong,

@@ -101,6 +101,17 @@ describe("this deal's audit entries", () => {
     expect(d5.reasoning).toBeTruthy();
   });
 
+  it("dollars only on judgment calls (Decision); fixes show what was wrong and the resolution", () => {
+    const d7 = detail("HS-9001").auditEntries.find((e) => e.check === "D7")!;
+    expect(d7.title).toBe("Monthly billing converted to annual");
+    expect([d7.impact, d7.atRisk]).toEqual([null, null]);
+    expect(d7.whatWasWrong).toBe("Amount $15,000 is billed monthly");
+    const d6 = detail("HS-9001").auditEntries.find((e) => e.check === "D6")!;
+    expect(d6.impact).toBe("+$144K");
+    const d9 = detail("006PF000001L001YAC").auditEntries.find((e) => e.check === "D9")!; // Hyperion, past due
+    expect([d9.impact, d9.atRisk]).toEqual([null, "$360K"]);
+  });
+
   it("a deal with no issues has none", () => {
     expect(detail("006PF000001L015YAC").auditEntries).toEqual([]);
   });

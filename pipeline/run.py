@@ -1,12 +1,18 @@
 """Run the full pipeline and write output/*.json.
 
-Usage: python pipeline/run.py --data data/raw [--out output]
+Usage: python pipeline/run.py --data data/raw [--out output] [--as-of 2026-10-22]
 
 A file-level problem (missing column, unreadable file) stops the run with a
 clear error and writes nothing, so the dashboard never sees half-updated output.
+
+Before writing, the run checks that the prior-week file is the current file
+from the last run in the output folder (by its SHA-256 fingerprint). If not,
+it prints a warning, because week-over-week would compare the wrong weeks,
+but still writes the output.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -40,10 +46,13 @@ class PipelineResult:
     totals: Totals          # formula (default)
     totals_vp: Totals       # VP override applied
     week_over_week: WeekOverWeek
+    as_of: date             # the date past-due is measured against
+    fingerprints: dict      # input file key -> SHA-256 of the file (for the prior-week check)
 
 
-def run_pipeline(data_dir) -> PipelineResult:
+def run_pipeline(data_dir, as_of=None) -> PipelineResult:
     data_dir = Path(data_dir)
+    as_of = as_of or config.AS_OF_DATE
     files = {key: data_dir / name for key, name in config.FILES.items()}
 
     sf_current, current_issues = standardize_salesforce(load_salesforce(files["sf_current"]))
@@ -52,7 +61,7 @@ def run_pipeline(data_dir) -> PipelineResult:
     vp_rows, vp_issues = standardize_vp(load_vp_scorecard(files["vp_scorecard"]))
     row_issues = current_issues + prior_issues + hubspot_issues + vp_issues
 
-    checked = run_checks(sf_current, sf_prior, hubspot, row_issues)
+    checked = run_checks(sf_current, sf_prior, hubspot, row_issues, as_of=as_of)
     top = check_vp_scorecard(vp_rows, checked.deals, row_issues)
     forecast = build_forecast(checked.deals, top.matches)
     week_over_week = compare_weeks(forecast.deals, checked.prior, row_issues)
@@ -66,6 +75,8 @@ def run_pipeline(data_dir) -> PipelineResult:
         totals=forecast.totals,
         totals_vp=forecast.totals_vp,
         week_over_week=week_over_week,
+        as_of=as_of,
+        fingerprints={key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in files.items()},
     )
 
 
@@ -73,20 +84,51 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="PulseFlow Q4 forecast pipeline")
     parser.add_argument("--data", required=True, type=Path, help="folder holding the 4 input files")
     parser.add_argument("--out", default=Path("output"), type=Path, help="folder for the JSON output")
+    parser.add_argument("--as-of", help="export date, YYYY-MM-DD (default: AS_OF_DATE in config.py)")
     args = parser.parse_args(argv)
+
+    if args.as_of is None:
+        as_of, source = config.AS_OF_DATE, "config.py"
+    else:
+        try:
+            as_of, source = date.fromisoformat(args.as_of), "--as-of"
+        except ValueError:
+            print(f"Error: --as-of must be a date like 2026-10-22 (got {args.as_of!r})", file=sys.stderr)
+            return 1
+    print(f"As of {as_of} (from {source})")
 
     if not args.data.is_dir():
         print(f"Error: data folder not found: {args.data}", file=sys.stderr)
         return 1
     try:
-        result = run_pipeline(args.data)
+        result = run_pipeline(args.data, as_of=as_of)
     except InputError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+    warning = prior_week_warning(args.out, result.fingerprints)
+    if warning:
+        print(f"Warning: {warning}", file=sys.stderr)
     write_outputs(build_outputs(result), args.out)
     print_summary(result, args.out)
     return 0
+
+
+def prior_week_warning(out_dir, fingerprints):
+    """None if the prior-week file is the current file from the last run in out_dir.
+    No check on a first run, or when the same week is run again."""
+    previous_file = Path(out_dir) / "forecast.json"
+    if not previous_file.exists():
+        return None
+    previous = json.loads(previous_file.read_text())["meta"]
+    last = previous.get("input_fingerprints")
+    if not last or last["sf_current"] == fingerprints["sf_current"]:
+        return None  # older output without fingerprints, or a re-run of the same week
+    if fingerprints["sf_prior"] == last["sf_current"]:
+        return None
+    return (f"the prior-week file ({config.FILES['sf_prior']}) is not the current file from the last run "
+            f"(as of {previous['as_of']}). Week-over-week may be comparing the wrong weeks. Did you rename last "
+            f"week's {config.FILES['sf_current']} to {config.FILES['sf_prior']}?")
 
 
 # --- JSON output ------------------------------------------------------------------
@@ -112,10 +154,11 @@ def _forecast_json(result):
     deals = sorted(result.deals.to_dict("records"), key=_deal_order)
     return {
         "meta": {
-            "as_of": config.AS_OF_DATE,
+            "as_of": result.as_of,
             "forecast_quarter": config.FORECAST_QUARTER,
             "board_target": config.BOARD_TARGET,
             "input_files": config.FILES,
+            "input_fingerprints": result.fingerprints,
             "ev_basis": "formula",
         },
         # What the dashboard's what-if math needs, so forecast.ts doesn't keep its own copy.
@@ -197,7 +240,7 @@ def _plain(value):
 # --- Console summary --------------------------------------------------------------
 
 def print_summary(result, out_dir):
-    print(f"PulseFlow {config.FORECAST_QUARTER} forecast, data as of {config.AS_OF_DATE}\n")
+    print(f"PulseFlow {config.FORECAST_QUARTER} forecast, data as of {result.as_of}\n")
     for label, t in [("Formula (default)", result.totals), ("VP override on", result.totals_vp)]:
         print(label)
         print(f"  Top Strategic Deals             ${t.top:>14,.0f}  ({t.top_count} deals)")

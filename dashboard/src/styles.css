@@ -1095,12 +1095,18 @@ tr.selected > :first-child {
 
 .audit-item-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
+}
+
+.audit-title {
+  font-weight: 700;
 }
 
 .audit-check {
-  font-weight: 700;
+  font-size: 12px;
+  color: var(--label);
 }
 
 .audit-impact {
@@ -1317,4 +1323,186 @@ tr.selected > :first-child {
 .week-change-category {
   font-weight: 600;
   color: var(--label);
+}
+
+/* --- Data Audit tab --------------------------------------------------------------- */
+
+.data-audit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-audit-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.audit-summary {
+  margin: var(--space-1) 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.audit-heading {
+  margin-bottom: var(--space-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.judgment-calls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.judgment-card {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--vp);
+  border-radius: var(--radius);
+}
+
+.judgment-card p {
+  margin: var(--space-2) 0 0;
+}
+
+.judgment-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.judgment-head h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.judgment-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.judgment-deals,
+.group-items {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.judgment-deals li,
+.group-items li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  padding: var(--space-1) 0;
+  border-top: 1px solid var(--border);
+}
+
+.judgment-deal-amount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-item-detail {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--label);
+}
+
+/* Groups: one row each (title and count); open one to see its deals. */
+.audit-groups {
+  max-width: 820px;
+  margin-bottom: var(--space-5);
+}
+
+.group-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.group-list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.audit-group summary,
+.audit-notes > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.audit-group summary::-webkit-details-marker,
+.audit-notes > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Our own arrow: points right when closed, down when open. */
+.audit-group summary::before,
+.audit-notes > summary::before {
+  content: "▸";
+  width: 1em;
+  color: var(--label);
+}
+
+.audit-group[open] > summary::before,
+.audit-notes[open] > summary::before {
+  content: "▾";
+}
+
+.audit-group summary:hover,
+.audit-notes > summary:hover {
+  background: var(--row-hover);
+}
+
+.audit-group summary:focus-visible,
+.audit-notes > summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.group-title {
+  font-weight: 600;
+}
+
+.group-count {
+  margin-left: auto;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.group-items {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 1em + var(--space-2));
+}
+
+.item-name {
+  font-weight: 600;
+}
+
+.audit-notes {
+  max-width: 820px;
+}
+
+.audit-notes > summary {
+  color: var(--label);
+  font-weight: 600;
+}
+
+.audit-notes .audit-groups {
+  margin: var(--space-2) 0 0;
 }

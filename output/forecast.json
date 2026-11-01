@@ -9,6 +9,12 @@
       "vp_scorecard": "3_vp_deal_scorecard.xlsx",
       "hubspot": "4_carebridge_hubspot_export.csv"
     },
+    "input_fingerprints": {
+      "sf_current": "8f303fc10ee2fd4bb593d2a0c16ac6f8d34624f48aaa4e986811e8f70f9aba1c",
+      "sf_prior": "021c488406c50799ee58cb89596d9d3bdb630b7f2493384c641982bd10fff7ee",
+      "vp_scorecard": "77cdb753b74e906c54efd4355fa1b4035f820714b580d159c71329f46f17a505",
+      "hubspot": "6103e0613738cc79ea1ee84999a5759ad012e9b80060652d6edac1a09c84661e"
+    },
     "ev_basis": "formula"
   },
   "settings": {

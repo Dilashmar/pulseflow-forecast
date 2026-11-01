@@ -26,6 +26,7 @@
   "entries": [
     {
       "check": "D1",
+      "title": "Duplicate rows removed",
       "kind": "Fix",
       "records": [
         {
@@ -49,6 +50,7 @@
     },
     {
       "check": "D2",
+      "title": "Conflicting versions, kept the latest",
       "kind": "Fix",
       "records": [
         {
@@ -72,6 +74,7 @@
     },
     {
       "check": "D1",
+      "title": "Duplicate rows removed",
       "kind": "Fix",
       "records": [
         {
@@ -95,6 +98,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -112,6 +116,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -129,6 +134,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -146,6 +152,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -163,6 +170,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -180,6 +188,7 @@
     },
     {
       "check": "D3",
+      "title": "Short Salesforce IDs matched",
       "kind": "Note",
       "records": [
         {
@@ -197,6 +206,7 @@
     },
     {
       "check": "D13",
+      "title": "Columns missing from a file",
       "kind": "Note",
       "records": [
         {
@@ -214,6 +224,7 @@
     },
     {
       "check": "D13",
+      "title": "Columns missing from a file",
       "kind": "Note",
       "records": [
         {
@@ -231,6 +242,7 @@
     },
     {
       "check": "D13",
+      "title": "Columns missing from a file",
       "kind": "Note",
       "records": [
         {
@@ -248,6 +260,7 @@
     },
     {
       "check": "D10",
+      "title": "Outside the forecast quarter, left out",
       "kind": "Fix",
       "records": [
         {
@@ -265,6 +278,7 @@
     },
     {
       "check": "D10",
+      "title": "Outside the forecast quarter, left out",
       "kind": "Fix",
       "records": [
         {
@@ -282,6 +296,7 @@
     },
     {
       "check": "D10",
+      "title": "Outside the forecast quarter, left out",
       "kind": "Fix",
       "records": [
         {
@@ -299,6 +314,7 @@
     },
     {
       "check": "D8",
+      "title": "Closed Lost deals left out",
       "kind": "Fix",
       "records": [
         {
@@ -316,6 +332,7 @@
     },
     {
       "check": "D10",
+      "title": "Outside the forecast quarter, left out",
       "kind": "Fix",
       "records": [
         {
@@ -333,6 +350,7 @@
     },
     {
       "check": "D10",
+      "title": "Outside the forecast quarter, left out",
       "kind": "Fix",
       "records": [
         {
@@ -350,6 +368,7 @@
     },
     {
       "check": "D8",
+      "title": "Closed Lost deals left out",
       "kind": "Fix",
       "records": [
         {
@@ -367,6 +386,7 @@
     },
     {
       "check": "D6",
+      "title": "Duplicate across Salesforce and HubSpot",
       "kind": "Decision",
       "records": [
         {
@@ -390,6 +410,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -407,6 +428,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -424,6 +446,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -441,6 +464,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -458,6 +482,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -475,6 +500,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -492,6 +518,7 @@
     },
     {
       "check": "D7",
+      "title": "Monthly billing converted to annual",
       "kind": "Fix",
       "records": [
         {
@@ -509,6 +536,7 @@
     },
     {
       "check": "D9",
+      "title": "Past-due deals",
       "kind": "Decision",
       "records": [
         {
@@ -526,6 +554,7 @@
     },
     {
       "check": "D9",
+      "title": "Past-due deals",
       "kind": "Decision",
       "records": [
         {
@@ -543,6 +572,7 @@
     },
     {
       "check": "D9",
+      "title": "Past-due deals",
       "kind": "Decision",
       "records": [
         {
@@ -560,6 +590,7 @@
     },
     {
       "check": "D9",
+      "title": "Past-due deals",
       "kind": "Decision",
       "records": [
         {
@@ -577,6 +608,7 @@
     },
     {
       "check": "D3",
+      "title": "VP sheet matched by short ID",
       "kind": "Fix",
       "records": [
         {
@@ -600,6 +632,7 @@
     },
     {
       "check": "D3",
+      "title": "VP sheet matched by short ID",
       "kind": "Fix",
       "records": [
         {
@@ -623,6 +656,7 @@
     },
     {
       "check": "D3",
+      "title": "VP sheet matched by short ID",
       "kind": "Fix",
       "records": [
         {
@@ -646,6 +680,7 @@
     },
     {
       "check": "D3",
+      "title": "VP sheet matched by short ID",
       "kind": "Fix",
       "records": [
         {
@@ -669,6 +704,7 @@
     },
     {
       "check": "D4",
+      "title": "VP rows matched by name",
       "kind": "Fix",
       "records": [
         {
@@ -692,6 +728,7 @@
     },
     {
       "check": "D5",
+      "title": "VP override",
       "kind": "Decision",
       "records": [
         {
@@ -715,6 +752,7 @@
     },
     {
       "check": "D4",
+      "title": "VP rows matched by name",
       "kind": "Fix",
       "records": [
         {
@@ -738,6 +776,7 @@
     },
     {
       "check": "D4",
+      "title": "VP rows matched by name",
       "kind": "Fix",
       "records": [
         {
@@ -761,6 +800,7 @@
     },
     {
       "check": "D4",
+      "title": "VP rows matched by name",
       "kind": "Fix",
       "records": [
         {

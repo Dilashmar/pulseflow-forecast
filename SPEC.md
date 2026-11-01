@@ -266,12 +266,19 @@ decimals (e.g. $13.18M). Changes carry a sign (+$1.18M, −$100K).
 
 ### 6.4 Tab 3: Data Audit
 
-- Summary line: "Corrections: $X total · net $Y" (sum of absolute $ impacts,
-  and the signed net).
-- Issues table: issue type, source file, record(s), what was wrong, how it
-  was resolved, $ impact, with severity chips. Filter by issue type.
-- Judgment calls (VP override, cross-system duplicate, past-due deals)
-  marked as "Decision" with the reasoning.
+Show only what someone acts on. Dollar amounts appear only on judgment calls,
+because those are the decisions the meeting makes; every entry's $ impact
+stays in `output/audit_log.json` for reconciliation.
+
+- Summary line: "N issues fixed automatically · M judgment calls need your
+  attention." No dollar figure.
+- Judgment calls first (VP override, cross-system duplicate, past-due deals):
+  each with the decision, the reasoning, and its $ impact or at-risk amount.
+- Fixed issues grouped by type, with plain-English names and deal counts (no
+  dollars). Expand a group to see its deals; click a deal to open its detail
+  panel.
+- Notes with no $ effect are collapsed.
+- No full issues table: source file and row stay in the audit log.
 
 ### 6.5 Charts (keep to two)
 

@@ -165,9 +165,14 @@ export function DetailPanel(props: DetailPanelProps) {
             {detail.auditEntries.map((e, i) => (
               <li key={`${e.check}-${i}`} className="audit-item">
                 <div className="audit-item-head">
-                  <span className="audit-check">{e.check}</span>
+                  <span className="audit-title">{e.title}</span>
                   <span className={`chip chip-kind-${e.kind.toLowerCase().replace(" ", "-")}`}>{e.kind}</span>
-                  <span className="audit-impact">{e.impact}{e.atRisk ? ` · ${e.atRisk} at risk` : ""}</span>
+                  <span className="audit-check" title="Check in SPEC.md">{e.check}</span>
+                  {(e.impact || e.atRisk) && (
+                    <span className="audit-impact">
+                      {[e.impact && `${e.impact} impact`, e.atRisk && `${e.atRisk} at risk`].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                 </div>
                 <p><strong>What was wrong:</strong> {e.whatWasWrong}</p>
                 <p><strong>Resolution:</strong> {e.resolution}</p>
