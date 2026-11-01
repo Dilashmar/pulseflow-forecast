@@ -17,6 +17,7 @@ from tests.helpers import copy_fixtures, edit_vp_cell, read_rows, write_rows
 
 REPO = Path(__file__).resolve().parents[1]
 OUTPUT_FILES = ["forecast.json", "audit_log.json", "week_over_week.json"]
+LAST_INPUTS = "last_inputs"
 SF_CURRENT = config.FILES["sf_current"]
 SF_PRIOR = config.FILES["sf_prior"]
 VP = config.FILES["vp_scorecard"]
@@ -54,8 +55,8 @@ def by_id(deals, deal_id):
 
 # --- forecast.json --------------------------------------------------------------
 
-def test_writes_three_files(written, out_dir):
-    assert sorted(p.name for p in out_dir.iterdir()) == sorted(OUTPUT_FILES)
+def test_writes_three_files_and_a_copy_of_the_inputs(written, out_dir):
+    assert sorted(p.name for p in out_dir.iterdir()) == sorted(OUTPUT_FILES + [LAST_INPUTS])
 
 
 def test_forecast_totals(written):
@@ -200,7 +201,7 @@ def test_script_runs_from_the_command_line(tmp_path):
     )
     assert completed.returncode == 0, completed.stderr
     assert "13,182,400" in completed.stdout
-    assert sorted(p.name for p in out.iterdir()) == sorted(OUTPUT_FILES)
+    assert sorted(p.name for p in out.iterdir()) == sorted(OUTPUT_FILES + [LAST_INPUTS])
 
 
 def test_new_week_with_new_deal_and_changed_score(work_dir, out_dir):
@@ -331,6 +332,110 @@ def test_warning_when_prior_week_file_was_not_replaced(data_dir, work_dir, out_d
     err = capsys.readouterr().err
     assert "Warning: the prior-week file" in err and SF_PRIOR in err
     assert read(out_dir, "forecast.json")["totals"]["formula"]["total"] == 13282400
+
+
+# --- --current: next week from one file -----------------------------------------
+
+NORTHWIND = ["006PF000001N002YAC", "Q4-2026", "Northwind Regional", "BedFlow", "Introduction",
+             "0.20", "500000", "Annual", "2026-12-01", "2026-10-20", "2", "Clara Oswald", "West"]
+
+
+def week_2_update(data_dir, path):
+    """Next week's Salesforce export: one new deal (+$100K) and Alabaster Business Approval ->
+    Contract Negotiations ($350K x 0.20 = +$70K)."""
+    rows = read_rows(data_dir / SF_CURRENT)
+    h = rows[0]
+    for row in rows[1:]:
+        if row[h.index("Health_System")] == "Alabaster Medical Center":
+            row[h.index("Stage")], row[h.index("Stage_Probability")] = "Contract Negotiations", "0.80"
+            row[h.index("Days_In_Stage")] = "1"
+    write_rows(path, rows + [NORTHWIND])
+    return path
+
+
+def run_current(path, out_dir, *extra):
+    return main(["--current", str(path), "--out", str(out_dir), *extra])
+
+
+def test_each_run_keeps_a_copy_of_its_inputs(written, out_dir, data_dir):
+    snapshot = out_dir / LAST_INPUTS
+    assert sorted(p.name for p in snapshot.iterdir()) == sorted(config.FILES.values())
+    for name in config.FILES.values():
+        assert (snapshot / name).read_bytes() == (data_dir / name).read_bytes(), name
+
+
+def test_current_runs_next_week_from_one_file(data_dir, tmp_path, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    update = week_2_update(data_dir, tmp_path / "week_2_update.csv")
+    capsys.readouterr()
+
+    assert run_current(update, out_dir, "--as-of", "2026-10-22") == 0
+    assert "Warning" not in capsys.readouterr().err
+
+    # Compared with last run's current file: only this week's two changes.
+    wow = read(out_dir, "week_over_week.json")
+    assert {k: v for k, v in wow["counts"].items() if v} == {"New Deals": 1, "Stage Moves": 1}
+    (move,) = wow["changes"]["Stage Moves"]
+    assert (move["customer"], move["ev_change"]) == ("Alabaster Medical Center", 70000)
+    forecast = read(out_dir, "forecast.json")
+    assert forecast["totals"]["formula"]["total"] == 13182400 + 100000 + 70000
+    assert forecast["meta"]["as_of"] == "2026-10-22"
+
+    # The copy now holds this run's inputs, ready for the week after.
+    snapshot = out_dir / LAST_INPUTS
+    assert (snapshot / SF_CURRENT).read_bytes() == update.read_bytes()
+    assert (snapshot / SF_PRIOR).read_bytes() == (data_dir / SF_CURRENT).read_bytes()
+    for key in ["vp_scorecard", "hubspot"]:
+        name = config.FILES[key]
+        assert (snapshot / name).read_bytes() == (data_dir / name).read_bytes(), name
+
+
+def test_current_twice_in_a_row(data_dir, tmp_path, out_dir):
+    assert run(data_dir, out_dir) == 0
+    update = week_2_update(data_dir, tmp_path / "week_2_update.csv")
+    assert run_current(update, out_dir) == 0
+    week3 = tmp_path / "week_3_update.csv"
+    rows = read_rows(update)
+    rows[-1][rows[0].index("Stage")], rows[-1][rows[0].index("Stage_Probability")] = "Technical Validation", "0.40"
+    write_rows(week3, rows)  # Northwind moves up: +$100K
+
+    assert run_current(week3, out_dir) == 0
+    wow = read(out_dir, "week_over_week.json")
+    assert {k: v for k, v in wow["counts"].items() if v} == {"Stage Moves": 1}
+    assert read(out_dir, "forecast.json")["totals"]["formula"]["total"] == 13182400 + 170000 + 100000
+
+
+def test_current_needs_a_previous_run(data_dir, tmp_path, out_dir, capsys):
+    update = week_2_update(data_dir, tmp_path / "week_2_update.csv")
+    assert run_current(update, out_dir) == 1
+    assert "run with --data first" in capsys.readouterr().err
+    assert not out_dir.exists()
+
+
+def test_current_file_not_found(data_dir, tmp_path, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    assert run_current(tmp_path / "missing.csv", out_dir) == 1
+    assert "missing.csv" in capsys.readouterr().err
+
+
+def test_current_with_wrong_columns_stops_and_keeps_last_week(data_dir, tmp_path, out_dir, capsys):
+    assert run(data_dir, out_dir) == 0
+    before = {name: (out_dir / name).read_bytes() for name in OUTPUT_FILES}
+    bad = tmp_path / "week_2_update.csv"
+    rows = read_rows(data_dir / SF_CURRENT)
+    i = rows[0].index("Amount")
+    write_rows(bad, [row[:i] + row[i + 1:] for row in rows])
+
+    assert run_current(bad, out_dir) == 1
+    err = capsys.readouterr().err
+    assert "week_2_update.csv" in err and "Amount" in err
+    assert {name: (out_dir / name).read_bytes() for name in OUTPUT_FILES} == before
+    assert (out_dir / LAST_INPUTS / SF_CURRENT).read_bytes() == (data_dir / SF_CURRENT).read_bytes()
+
+
+def test_data_and_current_cant_be_used_together(data_dir, tmp_path, out_dir):
+    with pytest.raises(SystemExit):
+        main(["--data", str(data_dir), "--current", str(tmp_path / "x.csv"), "--out", str(out_dir)])
 
 
 # --- SPEC 7.1: no deal IDs or names in pipeline logic ---------------------------

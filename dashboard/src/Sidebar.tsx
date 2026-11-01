@@ -7,7 +7,7 @@ export type Tab = "deal-room" | "what-changed" | "data-audit";
 export const TABS: { key: Tab; label: string; short: string }[] = [
   { key: "deal-room", label: "Deal Room", short: "DR" },
   { key: "what-changed", label: "What Changed", short: "WC" },
-  { key: "data-audit", label: "Data Audit", short: "DA" },
+  { key: "data-audit", label: "Data Hygiene & Audit Log", short: "AL" },
 ];
 
 const BUCKETS: Bucket[] = ["Top", "Longtail"];

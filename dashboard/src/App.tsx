@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import { auditView } from "./auditView";
+import { auditTable, auditView } from "./auditView";
 import { Banner } from "./Banner";
 import { bannerView } from "./bannerView";
 import { audit, forecast, weekOverWeek } from "./data";
@@ -21,6 +21,7 @@ import { whatChangedView } from "./whatChangedView";
 // Week over week and the audit log don't change with the what-if scenario: work them out once.
 const changesView = whatChangedView(weekOverWeek);
 const dataAuditView = auditView(audit, forecast);
+const dataAuditTable = auditTable(audit, forecast);
 
 export function App() {
   // The what-if scenario: score edits and the VP override toggle. Everything on
@@ -100,7 +101,7 @@ export function App() {
         ) : tab === "what-changed" ? (
           <WhatChanged view={changesView} selectedId={selectedId} onSelect={selectDeal} />
         ) : (
-          <DataAudit view={dataAuditView} selectedId={selectedId} onSelect={selectDeal} />
+          <DataAudit view={dataAuditView} table={dataAuditTable} selectedId={selectedId} onSelect={selectDeal} />
         )}
       </main>
 

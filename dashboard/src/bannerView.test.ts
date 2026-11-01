@@ -38,6 +38,11 @@ describe("banner, baseline (numbers recomputed from forecast.json's deals)", () 
     ]);
   });
 
+  it("combined Longtail total above the Core and CareBridge tiles", () => {
+    // $4,350,000 + $992,400 = $5,342,400
+    expect(view.longtail).toEqual({ label: "Longtail", value: "$5.34M", count: "30 deals" });
+  });
+
   it("warnings line", () => {
     expect(view.pastDue).toBe("Past-due exposure: $812K on 4 deals");
     expect(view.vpOverrideOn).toBe(false);
@@ -89,6 +94,7 @@ describe("more-than-8 warning, under the tiles", () => {
     expect(view.topWarning).toBe("9 Top deals: more than the usual 8. Allowed for what-if; review before presenting.");
     expect(view.tiles[0]).toEqual({ label: "Top deals", value: "$8.09M", count: "9 deals" });
     expect(view.tiles[1]).toEqual({ label: "Core Longtail", value: "$4.05M", count: "19 deals" });
+    expect(view.longtail).toEqual({ label: "Longtail", value: "$5.04M", count: "29 deals" });
     expect(view.total).toBe("$13.13M");
   });
 });

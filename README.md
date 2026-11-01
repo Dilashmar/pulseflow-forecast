@@ -23,18 +23,29 @@ pytest                                     # pipeline tests
 
 ## Running on a new week's data
 
-1. Make a new folder, for example `data/2026-10-22/`, with the four files under the same names as in
-   `data/raw/`. Last week's `1_sfdc_pipeline_current.csv` becomes this week's
-   `2_sfdc_pipeline_prior_week.csv`. Never edit the files in `data/raw/`.
-2. Run it with the export date:
-   `python pipeline/run.py --data data/2026-10-22 --as-of 2026-10-22`
-   (Without `--as-of`, the date comes from `pipeline/config.py`. The first line of the output shows which.)
-3. Read the output:
-   - **Warning about the prior-week file:** the prior-week file isn't last run's current file, so
-     week-over-week may compare the wrong weeks. Check the rename in step 1.
-   - **Error naming a file and column:** a file is missing a column or can't be read. Nothing is
-     written, and last week's output stays as it was.
-4. Refresh the dashboard. To keep this week's result, commit `output/`.
+**One command**, when only the Salesforce export is new:
+
+```bash
+python pipeline/run.py --current week_2_update.csv --as-of 2026-10-22
+```
+
+The new file is this week's Salesforce export. Last week's is used as the prior week, and the VP
+scorecard and HubSpot files carry over from the last run. Every run keeps a copy of its four input files
+in `output/last_inputs/`, so this works however many weeks you run in a row.
+
+**All four files new:** put them in a folder (e.g. `data/2026-10-22/`) under the same names as in
+`data/raw/`, with last week's `1_sfdc_pipeline_current.csv` as this week's
+`2_sfdc_pipeline_prior_week.csv`, then run `python pipeline/run.py --data data/2026-10-22 --as-of 2026-10-22`.
+Never edit the files in `data/raw/`.
+
+Then:
+- **Check the first line:** it shows the as-of date and where it came from. Without `--as-of`, the date
+  comes from `pipeline/config.py`.
+- **Warning about the prior-week file** (`--data` only): it isn't last run's current file, so
+  week-over-week may compare the wrong weeks. Check the rename.
+- **Error naming a file and column:** a file is missing a column or can't be read. Nothing is written,
+  and last week's output stays as it was.
+- **Refresh the dashboard.** To keep this week's result, commit `output/`.
 
 The tests keep passing on new weeks: they use frozen copies of the 2026-10-15 files. One dashboard test
 also checks the new week's output, confirming the dashboard and the pipeline give the same totals.

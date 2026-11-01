@@ -82,7 +82,7 @@ export interface AuditRecord {
 
 export interface AuditEntry {
   check: string;
-  title: string; // plain-English name shared by the rule's entries; the Data Audit tab groups by it
+  title: string; // plain-English name shared by the rule's entries; the Data Hygiene & Audit Log tab groups by it
   kind: "Fix" | "Flag" | "Decision" | "Needs review" | "Note";
   records: AuditRecord[];
   what_was_wrong: string;

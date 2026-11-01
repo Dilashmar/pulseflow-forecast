@@ -251,9 +251,36 @@ h1, h2, h3 {
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr);
   gap: var(--space-3);
   align-content: start;
+}
+
+/* Longtail: its total on one line, the Core and CareBridge tiles underneath. */
+.longtail-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.longtail-total {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-1);
+  border-bottom: 2px solid var(--border);
+}
+
+.longtail-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.longtail-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-3);
 }
 
 .tile {
@@ -1165,6 +1192,10 @@ tr.selected > :first-child {
     top: 0;
   }
 
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .banner {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1505,4 +1536,52 @@ tr.selected > :first-child {
 
 .audit-notes .audit-groups {
   margin: var(--space-2) 0 0;
+}
+
+/* "Show all issues": the full table, every audit entry. */
+.all-issues {
+  margin-top: var(--space-5);
+}
+
+.all-issues-body {
+  margin-top: var(--space-3);
+}
+
+.all-issues-legend {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  color: var(--label);
+}
+
+.all-issues .table-scroll {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.audit-table td,
+.audit-table th {
+  vertical-align: top;
+}
+
+.audit-table tbody tr {
+  cursor: default;
+}
+
+.audit-table td.source {
+  font-size: 13px;
+  color: var(--label);
+}
+
+.audit-table .wrap {
+  min-width: 220px;
+  max-width: 360px;
+  white-space: normal;
+}
+
+.audit-table th.issue {
+  font-weight: 400;
+}
+
+.audit-table th.issue .audit-title {
+  display: block;
 }

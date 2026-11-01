@@ -30,6 +30,7 @@ export interface BannerView {
   segments: BarSegment[];
   targetMarkerPercent: number;
   tiles: Tile[];
+  longtail: Tile; // all Longtail deals (Core, CareBridge and any Other), shown above their tiles
   pastDue: string;
   vpOverrideOn: boolean;
   vpOverride: string;
@@ -76,6 +77,11 @@ export function bannerView(forecast: ForecastFile, scenario: Scenario): BannerVi
     segments: barParts.map((p) => ({ key: p.key, label: p.label, value: money(dollars(p.cents)), widthPercent: width(p.cents) })),
     targetMarkerPercent: width(totals.target),
     tiles: parts.map((p) => ({ label: p.label, value: money(dollars(p.cents)), count: `${p.count} deals` })),
+    longtail: {
+      label: "Longtail",
+      value: money(dollars(totals.longtail)),
+      count: `${totals.coreCount + totals.carebridgeCount + totals.otherCount} deals`,
+    },
     pastDue: `Past-due exposure: ${money(dollars(totals.pastDueExposure))} on ${pastDueDeals} deals`,
     vpOverrideOn: scenario.vpOverride,
     vpOverride: vpText,

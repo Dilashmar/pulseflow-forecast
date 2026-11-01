@@ -32,8 +32,10 @@ class InputError(Exception):
     """A file-level problem (missing or unreadable file, missing column). Stops the run."""
 
 
-def load_salesforce(path):
-    return _load_csv(Path(path), SALESFORCE_COLUMNS)
+def load_salesforce(path, source_name=None):
+    """source_name: the name to report (audit log, errors) when the file on disk is
+    a copy, e.g. last run's current file read as this run's prior week."""
+    return _load_csv(Path(path), SALESFORCE_COLUMNS, source_name)
 
 
 def load_hubspot(path):
@@ -65,20 +67,21 @@ def load_vp_scorecard(path):
     return pd.DataFrame(records, columns=["source_file", "source_row", *VP_COLUMNS], dtype=object)
 
 
-def _load_csv(path, required_columns):
+def _load_csv(path, required_columns, source_name=None):
+    name = source_name or path.name
     try:
         df = pd.read_csv(path, dtype=str, keep_default_na=False)
     except FileNotFoundError:
-        raise InputError(f"{path.name}: file not found") from None
+        raise InputError(f"{name}: file not found") from None
     except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeDecodeError) as e:
-        raise InputError(f"{path.name}: could not read file ({e})") from e
+        raise InputError(f"{name}: could not read file ({e})") from e
 
     df.columns = [str(c).strip() for c in df.columns]
-    _require_columns(path.name, df.columns, required_columns)
+    _require_columns(name, df.columns, required_columns)
 
     df = df[required_columns].astype(object).map(str.strip)
     df.insert(0, "source_row", range(2, len(df) + 2))  # line 1 is the header
-    df.insert(0, "source_file", path.name)
+    df.insert(0, "source_file", name)
     return df
 
 

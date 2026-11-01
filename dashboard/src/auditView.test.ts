@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { auditView } from "./auditView";
+import { auditTable, auditView } from "./auditView";
 import { audit, forecast } from "./data";
 import type { AuditFile } from "./types";
 
@@ -89,5 +89,39 @@ describe("needs a check (Needs review, Flag)", () => {
     const v = auditView(flagged, forecast);
     expect(groupSummary(v.attention)).toEqual([["Conflicting versions, latest unclear", "1 deal"]]);
     expect(v.summary).toBe("25 issues fixed automatically · 3 judgment calls need your attention · 1 issue needs a check");
+  });
+});
+
+describe("Show all issues: the full table", () => {
+  const rows = auditTable(audit, forecast);
+
+  it("one row per entry in audit_log.json", () => {
+    expect(rows).toHaveLength(audit.entries.length);
+    expect(rows).toHaveLength(audit.summary.entries);
+  });
+
+  it("source file and record, one line per record", () => {
+    const [first] = rows;
+    expect(first.records).toEqual([
+      { file: "1_sfdc_pipeline_current.csv", record: "Row 17 · Cascadia Crest Medical", dealId: "006PF000001L014YAC" },
+      { file: "1_sfdc_pipeline_current.csv", record: "Row 18 · Cascadia Crest Medical", dealId: "006PF000001L014YAC" },
+    ]);
+    expect([first.title, first.issue, first.resolution]).toEqual([
+      "Duplicate rows removed", "Row 18 is an exact copy of row 17", "Kept row 17; dropped the copy",
+    ]);
+  });
+
+  it("$ impact: signed, $0, or the at-risk amount", () => {
+    expect(rows[0].impact).toBe("+$320K");
+    expect(rows.find((r) => r.title === "Monthly billing converted to annual")!.impact).toBe("−$132K");
+    expect(rows.find((r) => r.title === "Past-due deals")!.impact).toBe("$360K at risk");
+    const wholeFile = rows.find((r) => r.title === "Columns missing from a file")!;
+    expect(wholeFile.impact).toBe("$0");
+    expect(wholeFile.records).toEqual([{ file: "4_carebridge_hubspot_export.csv", record: "Whole file", dealId: null }]);
+  });
+
+  it("a record with a short ID links to the full deal", () => {
+    const shortId = rows.find((r) => r.title === "Short Salesforce IDs matched")!;
+    expect(shortId.records[0].dealId).toBe("006PF000001L002YAC");
   });
 });

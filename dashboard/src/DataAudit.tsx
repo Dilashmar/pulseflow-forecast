@@ -1,17 +1,23 @@
-import type { AuditGroup, AuditItem, AuditView } from "./auditView";
+import { useState } from "react";
+
+import type { AuditGroup, AuditItem, AuditTableRow, AuditView } from "./auditView";
+
+const AUDIT_TAB_TITLE = "Data Hygiene & Audit Log";
 
 interface DataAuditProps {
   view: AuditView;
+  table: AuditTableRow[];
   selectedId: string | null;
   onSelect: (dealId: string) => void;
 }
 
-export function DataAudit({ view, selectedId, onSelect }: DataAuditProps) {
+export function DataAudit({ view, table, selectedId, onSelect }: DataAuditProps) {
+  const [showAll, setShowAll] = useState(false);
   return (
-    <section className="card data-audit" aria-label="Data Audit">
+    <section className="card data-audit" aria-label={AUDIT_TAB_TITLE}>
       <div className="toolbar">
         <div className="toolbar-title">
-          <h2>Data Audit</h2>
+          <h2>{AUDIT_TAB_TITLE}</h2>
           <p className="audit-summary">{view.summary}</p>
         </div>
       </div>
@@ -54,6 +60,16 @@ export function DataAudit({ view, selectedId, onSelect }: DataAuditProps) {
             <GroupList id="notes" heading="Notes" hideHeading groups={view.notes} selectedId={selectedId} onSelect={onSelect} />
           </details>
         )}
+
+        <div className="all-issues">
+          <button type="button" className="button" aria-expanded={showAll} aria-controls="all-issues-table"
+            onClick={() => setShowAll(!showAll)}>
+            {showAll ? "Hide all issues" : `Show all issues (${table.length})`}
+          </button>
+          {showAll && (
+            <AllIssuesTable rows={table} selectedId={selectedId} onSelect={onSelect} />
+          )}
+        </div>
       </div>
     </section>
   );
@@ -94,6 +110,57 @@ function GroupList({ id, heading, hideHeading, groups, selectedId, onSelect }: G
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Every audit entry as a row, for checking the numbers against the source files. */
+function AllIssuesTable({ rows, selectedId, onSelect }: { rows: AuditTableRow[]; selectedId: string | null; onSelect: (dealId: string) => void }) {
+  return (
+    <div id="all-issues-table" className="all-issues-body">
+      <p className="all-issues-legend">
+        $ impact: <strong>+</strong> the forecast would have been that much too high without the fix,
+        {" "}<strong>−</strong> too low. Past-due deals show the amount at risk.
+      </p>
+      <div className="table-scroll">
+        <table className="deal-table audit-table">
+          <caption className="visually-hidden">All {rows.length} data issues, in audit log order</caption>
+          <thead>
+            <tr>
+              <th scope="col">Source file</th>
+              <th scope="col">Record</th>
+              <th scope="col">Issue</th>
+              <th scope="col">Resolution</th>
+              <th scope="col" className="num">$ impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <td className="source">{row.records.map((r, i) => <div key={i}>{r.file}</div>)}</td>
+                <td className="record">
+                  {row.records.map((r, i) => (
+                    <div key={i}>
+                      {r.dealId ? (
+                        <button type="button" className="row-link" aria-label={`${r.record}: open details`}
+                          aria-current={r.dealId === selectedId ? "true" : undefined} onClick={() => onSelect(r.dealId!)}>
+                          {r.record}
+                        </button>
+                      ) : r.record}
+                    </div>
+                  ))}
+                </td>
+                <th scope="row" className="wrap issue">
+                  <span className="audit-title">{row.title}</span>
+                  <span className="audit-item-detail">{row.issue}</span>
+                </th>
+                <td className="wrap">{row.resolution}</td>
+                <td className="num strong">{row.impact}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,13 @@
 """Run the full pipeline and write output/*.json.
 
-Usage: python pipeline/run.py --data data/raw [--out output] [--as-of 2026-10-22]
+Usage:
+  python pipeline/run.py --data data/raw [--out output] [--as-of 2026-10-22]
+  python pipeline/run.py --current week_2_update.csv [--out output] [--as-of 2026-10-22]
+
+--data reads the 4 files from a folder. --current takes only this week's
+Salesforce export: the prior week, VP scorecard and HubSpot files come from
+the copy of the last run's inputs kept in <out>/last_inputs/. Every run
+refreshes that copy.
 
 A file-level problem (missing column, unreadable file) stops the run with a
 clear error and writes nothing, so the dashboard never sees half-updated output.
@@ -36,6 +43,7 @@ from pipeline.standardize import standardize_hubspot, standardize_salesforce, st
 from pipeline.week_over_week import CATEGORIES, EV_BASIS, WeekOverWeek, compare_weeks  # noqa: E402
 
 OUTPUT_FILES = ["forecast.json", "audit_log.json", "week_over_week.json"]
+LAST_INPUTS = "last_inputs"  # copy of the last run's 4 input files, under their standard names
 
 
 @dataclass
@@ -48,15 +56,22 @@ class PipelineResult:
     week_over_week: WeekOverWeek
     as_of: date             # the date past-due is measured against
     fingerprints: dict      # input file key -> SHA-256 of the file (for the prior-week check)
+    input_names: dict       # input file key -> the file name reported in the output
 
 
 def run_pipeline(data_dir, as_of=None) -> PipelineResult:
+    """The 4 files from one folder, under their standard names (config.FILES)."""
     data_dir = Path(data_dir)
-    as_of = as_of or config.AS_OF_DATE
-    files = {key: data_dir / name for key, name in config.FILES.items()}
+    return run_files({key: data_dir / name for key, name in config.FILES.items()}, as_of)
 
-    sf_current, current_issues = standardize_salesforce(load_salesforce(files["sf_current"]))
-    sf_prior, prior_issues = standardize_salesforce(load_salesforce(files["sf_prior"]))
+
+def run_files(files, as_of=None, names=None) -> PipelineResult:
+    """files: input key -> path. names: input key -> name to report (default: the path's name)."""
+    as_of = as_of or config.AS_OF_DATE
+    names = {key: (names or {}).get(key) or Path(path).name for key, path in files.items()}
+
+    sf_current, current_issues = standardize_salesforce(load_salesforce(files["sf_current"], names["sf_current"]))
+    sf_prior, prior_issues = standardize_salesforce(load_salesforce(files["sf_prior"], names["sf_prior"]))
     hubspot, hubspot_issues = standardize_hubspot(load_hubspot(files["hubspot"]))
     vp_rows, vp_issues = standardize_vp(load_vp_scorecard(files["vp_scorecard"]))
     row_issues = current_issues + prior_issues + hubspot_issues + vp_issues
@@ -64,7 +79,8 @@ def run_pipeline(data_dir, as_of=None) -> PipelineResult:
     checked = run_checks(sf_current, sf_prior, hubspot, row_issues, as_of=as_of)
     top = check_vp_scorecard(vp_rows, checked.deals, row_issues)
     forecast = build_forecast(checked.deals, top.matches)
-    week_over_week = compare_weeks(forecast.deals, checked.prior, row_issues)
+    week_over_week = compare_weeks(forecast.deals, checked.prior, row_issues,
+                                   current_file=names["sf_current"], prior_file=names["sf_prior"])
 
     audit = checked.audit + top.audit + week_over_week.audit
     update_past_due_at_risk(audit, forecast.deals)
@@ -76,13 +92,17 @@ def run_pipeline(data_dir, as_of=None) -> PipelineResult:
         totals_vp=forecast.totals_vp,
         week_over_week=week_over_week,
         as_of=as_of,
-        fingerprints={key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in files.items()},
+        fingerprints={key: hashlib.sha256(Path(path).read_bytes()).hexdigest() for key, path in files.items()},
+        input_names=names,
     )
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="PulseFlow Q4 forecast pipeline")
-    parser.add_argument("--data", required=True, type=Path, help="folder holding the 4 input files")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--data", type=Path, help="folder holding the 4 input files")
+    source.add_argument("--current", type=Path,
+                        help="this week's Salesforce export only; the other 3 files come from the last run")
     parser.add_argument("--out", default=Path("output"), type=Path, help="folder for the JSON output")
     parser.add_argument("--as-of", help="export date, YYYY-MM-DD (default: AS_OF_DATE in config.py)")
     args = parser.parse_args(argv)
@@ -97,21 +117,56 @@ def main(argv=None):
             return 1
     print(f"As of {as_of} (from {source})")
 
-    if not args.data.is_dir():
-        print(f"Error: data folder not found: {args.data}", file=sys.stderr)
-        return 1
+    if args.data is not None:
+        if not args.data.is_dir():
+            print(f"Error: data folder not found: {args.data}", file=sys.stderr)
+            return 1
+        files = {key: args.data / name for key, name in config.FILES.items()}
+        names = None
+    else:
+        last = args.out / LAST_INPUTS
+        if not all((last / name).is_file() for name in config.FILES.values()):
+            print(f"Error: no previous run in {args.out}/ to take last week's files from; "
+                  f"run with --data first", file=sys.stderr)
+            return 1
+        if not args.current.is_file():
+            print(f"Error: {args.current.name}: file not found", file=sys.stderr)
+            return 1
+        # Last run's current file is this run's prior week; VP and HubSpot carry over.
+        files = {
+            "sf_current": args.current,
+            "sf_prior": last / config.FILES["sf_current"],
+            "vp_scorecard": last / config.FILES["vp_scorecard"],
+            "hubspot": last / config.FILES["hubspot"],
+        }
+        names = {"sf_prior": config.FILES["sf_prior"]}
+
     try:
-        result = run_pipeline(args.data, as_of=as_of)
+        result = run_files(files, as_of=as_of, names=names)
     except InputError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    warning = prior_week_warning(args.out, result.fingerprints)
-    if warning:
-        print(f"Warning: {warning}", file=sys.stderr)
+    if args.data is not None:  # with --current the prior week is last run's file by design
+        warning = prior_week_warning(args.out, result.fingerprints)
+        if warning:
+            print(f"Warning: {warning}", file=sys.stderr)
     write_outputs(build_outputs(result), args.out)
+    save_inputs(files, args.out)
     print_summary(result, args.out)
     return 0
+
+
+def save_inputs(files, out_dir):
+    """Keep a copy of this run's 4 inputs under their standard names, for the next --current run.
+    Read in full first: with --current, some inputs are the old copies being replaced."""
+    contents = {config.FILES[key]: Path(path).read_bytes() for key, path in files.items()}
+    last = out_dir / LAST_INPUTS
+    last.mkdir(parents=True, exist_ok=True)
+    for name, data in contents.items():
+        temp = last / f".{name}.tmp"
+        temp.write_bytes(data)
+        os.replace(temp, last / name)
 
 
 def prior_week_warning(out_dir, fingerprints):
@@ -157,7 +212,7 @@ def _forecast_json(result):
             "as_of": result.as_of,
             "forecast_quarter": config.FORECAST_QUARTER,
             "board_target": config.BOARD_TARGET,
-            "input_files": config.FILES,
+            "input_files": result.input_names,
             "input_fingerprints": result.fingerprints,
             "ev_basis": "formula",
         },
@@ -259,6 +314,7 @@ def print_summary(result, out_dir):
     if wow.couldnt_compare:
         print(f"  Couldn't compare (set aside): {len(wow.couldnt_compare)}")
     print("\nWrote " + ", ".join(str(out_dir / name) for name in OUTPUT_FILES))
+    print(f"Kept a copy of this run's input files in {out_dir / LAST_INPUTS}/ for the next --current run")
 
 
 if __name__ == "__main__":

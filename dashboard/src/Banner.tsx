@@ -5,6 +5,16 @@ interface BannerProps {
   onVpOverrideChange: (on: boolean) => void;
 }
 
+function TileBox({ tile, kind }: { tile: BannerView["tiles"][number]; kind: string }) {
+  return (
+    <div className={`tile tile-${kind}`}>
+      <div className="tile-label">{tile.label}</div>
+      <div className="tile-value">{tile.value}</div>
+      <div className="tile-count">{tile.count}</div>
+    </div>
+  );
+}
+
 export function Banner({ view, onVpOverrideChange }: BannerProps) {
   const status = view.onTarget ? "on-target" : "short";
   return (
@@ -38,14 +48,21 @@ export function Banner({ view, onVpOverrideChange }: BannerProps) {
         </div>
       </div>
 
+      {/* Top deals | Longtail total, with its Core and CareBridge tiles underneath. */}
       <div className="tiles">
-        {view.tiles.map((tile, i) => (
-          <div key={tile.label} className={`tile tile-${view.segments[i].key}`}>
-            <div className="tile-label">{tile.label}</div>
-            <div className="tile-value">{tile.value}</div>
-            <div className="tile-count">{tile.count}</div>
+        <TileBox tile={view.tiles[0]} kind={view.segments[0].key} />
+        <section className="longtail-group" aria-label={`${view.longtail.label}: ${view.longtail.value}`}>
+          <p className="longtail-total">
+            <span className="tile-label">{view.longtail.label}</span>
+            <span className="longtail-value">{view.longtail.value}</span>
+            <span className="tile-count">{view.longtail.count}</span>
+          </p>
+          <div className="longtail-tiles">
+            {view.tiles.slice(1).map((tile, i) => (
+              <TileBox key={tile.label} tile={tile} kind={view.segments[i + 1].key} />
+            ))}
           </div>
-        ))}
+        </section>
       </div>
 
       {/* Always present (empty when fine) so screen readers announce the warning when it appears. */}

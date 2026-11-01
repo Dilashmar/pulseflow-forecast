@@ -1,10 +1,11 @@
-// What the Data Audit tab shows (SPEC 6.4): a count summary, the judgment calls
-// (Decision entries) with their reasoning and dollars, then everything else
-// grouped by the pipeline's plain-English title. Only judgment calls show
-// dollars; every entry's $ impact stays in audit_log.json. Display logic only.
+// What the Data Hygiene & Audit Log tab shows (SPEC 6.4): a count summary, the
+// judgment calls (Decision entries) with their reasoning and dollars, then
+// everything else grouped by the pipeline's plain-English title. "Show all
+// issues" opens the full table, one row per entry, with source file, record and
+// $ impact, for whoever checks the numbers. Display logic only.
 
 import { money, signedMoney } from "./format";
-import type { AuditEntry, AuditFile, Deal, ForecastFile } from "./types";
+import type { AuditEntry, AuditFile, AuditRecord, Deal, ForecastFile } from "./types";
 
 export type Kind = AuditEntry["kind"];
 
@@ -33,6 +34,16 @@ export interface JudgmentCall {
   decision: string;
   reasoning: string | null;
   items: JudgmentItem[];
+}
+
+export interface AuditTableRow {
+  key: string;
+  title: string;
+  kind: Kind;
+  records: { file: string; record: string; dealId: string | null }[]; // one line per record
+  issue: string; // what was wrong
+  resolution: string;
+  impact: string; // "+$320K", "$0", or "$360K at risk"
 }
 
 export interface AuditView {
@@ -111,6 +122,23 @@ export function auditView(audit: AuditFile, forecast: ForecastFile): AuditView {
   };
 }
 
+/** Every audit entry, in audit_log.json order. */
+export function auditTable(audit: AuditFile, forecast: ForecastFile): AuditTableRow[] {
+  return audit.entries.map((e, i) => ({
+    key: `${e.check}-${i}`,
+    title: e.title,
+    kind: e.kind,
+    records: e.records.map((r) => ({
+      file: r.source_file,
+      record: r.source_row === null ? "Whole file" : [`Row ${r.source_row}`, r.customer].filter(Boolean).join(" · "),
+      dealId: recordDeal(r, forecast)?.deal_id ?? null,
+    })),
+    issue: e.what_was_wrong,
+    resolution: e.resolution,
+    impact: e.impact === 0 && e.at_risk ? `${money(e.at_risk)} at risk` : e.impact === 0 ? "$0" : signedMoney(e.impact),
+  }));
+}
+
 /** Entries grouped by title, each group in audit_log.json order. */
 function byTitle(entries: AuditEntry[]): AuditEntry[][] {
   const map = new Map<string, AuditEntry[]>();
@@ -121,11 +149,16 @@ function byTitle(entries: AuditEntry[]): AuditEntry[][] {
 /** The deal an entry is about: the first record whose ID (full, or a 15-character match key) is in forecast.json. */
 function entryDeal(entry: AuditEntry, forecast: ForecastFile): Deal | undefined {
   for (const r of entry.records) {
-    if (r.deal_id === null) continue;
-    const deal = forecast.deals.find((d) => d.deal_id === r.deal_id || d.match_key === r.deal_id);
+    const deal = recordDeal(r, forecast);
     if (deal) return deal;
   }
   return undefined;
+}
+
+/** The deal in forecast.json a record names, by full ID or 15-character match key. */
+function recordDeal(r: AuditRecord, forecast: ForecastFile): Deal | undefined {
+  if (r.deal_id === null) return undefined;
+  return forecast.deals.find((d) => d.deal_id === r.deal_id || d.match_key === r.deal_id);
 }
 
 function amountText(impact: number, atRisk: number): string {

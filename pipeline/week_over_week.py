@@ -61,11 +61,12 @@ class WeekOverWeek:
     audit: list
 
 
-def compare_weeks(current_deals, prior_deals, row_issues):
+def compare_weeks(current_deals, prior_deals, row_issues, current_file=None, prior_file=None):
+    """current_file / prior_file: the Salesforce files' names as loaded (default: config.FILES)."""
     now = {d["match_key"]: d for d in current_deals.to_dict("records") if d["source"] == SALESFORCE}
     before = {d["match_key"]: d for d in prior_deals.to_dict("records")}
-    set_aside_now = _set_aside_keys(row_issues, config.FILES["sf_current"])
-    set_aside_before = _set_aside_keys(row_issues, config.FILES["sf_prior"])
+    set_aside_now = _set_aside_keys(row_issues, current_file or config.FILES["sf_current"])
+    set_aside_before = _set_aside_keys(row_issues, prior_file or config.FILES["sf_prior"])
 
     changes = {category: [] for category in CATEGORIES}
     couldnt_compare, audit = [], []
