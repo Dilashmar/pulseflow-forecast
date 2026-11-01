@@ -92,7 +92,8 @@ Excluded deals still appear in the audit log / week-over-week view, but add $0.
 
 - Billing_Frequency == "Monthly" → annual_acv = amount × 12
 - Billing_Frequency == "Annual" → annual_acv = amount
-- Any other value → stop with a clear error.
+- Any other value, or blank → set that row aside, flag it "needs review" in
+  the audit log, and continue the run.
 
 ### 3.3 Bucket A: Top Strategic Deals (from the VP scorecard)
 
@@ -160,7 +161,7 @@ issue type, what was wrong, how it was resolved, and forecast $ impact
 | D11 | Stage probability doesn't match the standard for its Salesforce stage | Flag only |
 | D12 | Fiscal period doesn't match the close date's quarter | Flag only |
 | D13 | Field missing in a source (e.g. HubSpot has no Region) | Leave blank; never invent values |
-| D14 | Unknown billing frequency or missing required column | Stop with a clear error naming the file and column |
+| D14 | File-level problem: missing required column or unreadable file | Stop with a clear error naming the file and column |
 
 ### Not a duplicate
 
