@@ -1,8 +1,9 @@
 """Data quality rules (SPEC section 4); each issue becomes an audit entry.
 
-D1-D3 and D6-D13 run here. D3 (15/18-char IDs) is handled by match_key and
-logged with week-over-week; D4 and D5 run with the Top deal scoring. Every
-rule is general: no deal IDs or names appear in the logic.
+D1, D2 and D6-D13 run here, plus the SPEC 4.1 missing/invalid value issues
+found while reading (labelled "4.1"). D3 (15/18-char IDs) is handled by
+match_key and logged with week-over-week; D4 and D5 run with the Top deal
+scoring. Every rule is general: no deal IDs or names appear in the logic.
 
 Excluded deals are not deleted: they stay in `deals` with in_forecast=False
 and an exclusion_reason. Only extra copies of the same row (D1, D2) are
@@ -21,25 +22,44 @@ import pandas as pd
 
 from pipeline import config
 from pipeline.forecast import ACV_MULTIPLIERS, CLOSED_LOST, is_active_q4, stage_expected_value
-from pipeline.standardize import DEAL_FIELDS, HUBSPOT_COLUMNS, SALESFORCE_COLUMNS
+from pipeline.standardize import (
+    DEAL_FIELDS,
+    HUBSPOT,
+    HUBSPOT_COLUMNS,
+    SALESFORCE,
+    SALESFORCE_COLUMNS,
+    Action,
+    quarter_of,
+)
 
 FIX = "Fix"
 FLAG = "Flag"
 DECISION = "Decision"
 NEEDS_REVIEW = "Needs review"
+NOTE = "Note"
 
 ZERO = Decimal("0")
 STATUS_FIELDS = ["in_forecast", "exclusion_reason", "duplicate_of", "flags"]
 
-# Standard fields that may be blank in a row without setting the row aside (D13).
+# Fields that may be blank in a row without setting the row aside (D13).
+# A blank customer is a flag (D6 can't check it); the rest are minor notes.
 OPTIONAL_FIELDS = ["customer", "sales_rep", "region", "created_date", "days_in_stage"]
-SOURCE_COLUMNS = {"Salesforce": SALESFORCE_COLUMNS, "HubSpot": HUBSPOT_COLUMNS}
+SOURCE_COLUMNS = {SALESFORCE: SALESFORCE_COLUMNS, HUBSPOT: HUBSPOT_COLUMNS}
+
+# SPEC 4.1 action -> audit kind.
+ACTION_KINDS = {
+    Action.SET_ASIDE: NEEDS_REVIEW,
+    Action.FILLED: FIX,
+    Action.NEEDS_REVIEW: NEEDS_REVIEW,
+    Action.FLAGGED: FLAG,
+    Action.LEFT_BLANK: NOTE,
+}
 
 
 @dataclass
 class AuditEntry:
-    check: str              # "D1".."D13", or "Row" for a row set aside while reading
-    kind: str               # FIX, FLAG, DECISION or NEEDS_REVIEW
+    check: str              # "D1".."D13", or "4.1" for a missing/invalid value found while reading
+    kind: str               # FIX, FLAG, DECISION, NEEDS_REVIEW or NOTE
     records: list           # [{source_file, source_row, deal_id, customer}]; source_row None = whole file
     what_was_wrong: str
     resolution: str
@@ -56,16 +76,17 @@ class CheckResult:
 
 
 def run_checks(sf_current, sf_prior, hubspot, row_issues):
-    audit = _rows_set_aside(row_issues)
+    audit = []
 
     sf_current = _remove_duplicate_rows(_as_deals(sf_current), audit, counts_in_forecast=True)
     prior = _remove_duplicate_rows(_as_deals(sf_prior), audit, counts_in_forecast=False)
     hubspot = _remove_duplicate_rows(_as_deals(hubspot), audit, counts_in_forecast=True)
     deals = sf_current + hubspot
 
-    _check_missing_fields(deals, audit)
+    _check_missing_fields(deals, audit, row_issues)
     _check_excluded(deals, audit)
     _check_cross_system_duplicates(deals, audit)
+    _log_row_issues(row_issues, deals, audit)
     _check_monthly_billing(deals, audit)
     _check_past_due(deals, audit)
     _check_stage_probability(deals, audit)
@@ -85,26 +106,53 @@ def normalize_name(name):
     return " ".join(name.split())
 
 
-# --- Rows set aside while reading ---------------------------------------------
+# --- SPEC 4.1: missing or invalid values found while reading --------------------
 
-def _rows_set_aside(row_issues):
-    """One "needs review" entry per row that standardize.py left out."""
+def _log_row_issues(row_issues, deals, audit):
+    """A set-aside row gets one entry listing all its problems; a kept row gets
+    one entry per problem. Filled values: impact = the expected value that
+    would be missing if the row had been set aside instead. Kept-and-flagged
+    rows: the deal's expected value is at risk."""
     by_row = {}
     for issue in row_issues:
-        if issue.row_excluded:  # kept-row notes (VP sheet values) are logged by D5
+        if issue.action != Action.NOT_COMPARED:  # VP sheet values are logged by D5
             by_row.setdefault((issue.source_file, issue.source_row), []).append(issue)
-    return [
-        AuditEntry(
-            check="Row",
-            kind=NEEDS_REVIEW,
-            records=[{"source_file": file, "source_row": row,
-                      "deal_id": issues[0].record, "customer": None}],
-            what_was_wrong="; ".join(f"{i.column} {i.value!r}: {i.problem}" for i in issues),
-            resolution="Row left out of the forecast until it is fixed in the source system",
-            impact=ZERO,
-        )
-        for (file, row), issues in by_row.items()
-    ]
+    deal_at = {(d["source_file"], d["source_row"]): d for d in deals}
+
+    for (file, row), issues in by_row.items():
+        deal = deal_at.get((file, row))
+        record = _record(deal) if deal else {
+            "source_file": file, "source_row": row, "deal_id": issues[0].record, "customer": None,
+        }
+        set_aside = [i for i in issues if i.row_excluded]
+        if set_aside:
+            audit.append(AuditEntry(
+                check="4.1",
+                kind=NEEDS_REVIEW,
+                records=[record],
+                what_was_wrong="; ".join(_describe(i) for i in issues),
+                resolution=set_aside[0].resolution,
+                impact=ZERO,
+            ))
+            continue
+
+        counted = _counted_ev(deal) if deal and deal["in_forecast"] else ZERO
+        for issue in issues:
+            kind = ACTION_KINDS[issue.action]
+            audit.append(AuditEntry(
+                check="4.1",
+                kind=kind,
+                records=[record],
+                what_was_wrong=_describe(issue),
+                resolution=issue.resolution,
+                impact=-counted if issue.action == Action.FILLED else ZERO,
+                at_risk=counted if kind in (FLAG, NEEDS_REVIEW) else None,
+            ))
+
+
+def _describe(issue):
+    shown = "blank" if issue.value in (None, "") else repr(issue.value)
+    return f"{issue.column} {shown}: {issue.problem}"
 
 
 # --- D1, D2: duplicates within one file ---------------------------------------
@@ -177,7 +225,7 @@ def _remove_duplicate_rows(deals, audit, counts_in_forecast):
 
 # --- D13: fields missing in a source ------------------------------------------
 
-def _check_missing_fields(deals, audit):
+def _check_missing_fields(deals, audit, row_issues):
     # D13: a column the source system doesn't have. Leave blank; never invent.
     for source, columns in SOURCE_COLUMNS.items():
         source_deals = [d for d in deals if d["source"] == source]
@@ -188,27 +236,36 @@ def _check_missing_fields(deals, audit):
             if column is None:
                 audit.append(AuditEntry(
                     check="D13",
-                    kind=FLAG,
+                    kind=NOTE,
                     records=[{"source_file": file, "source_row": None, "deal_id": None, "customer": None}],
                     what_was_wrong=f"{source} has no {SALESFORCE_COLUMNS[field]} column",
                     resolution="Left blank for all rows; no value invented",
                     impact=ZERO,
-                    at_risk=ZERO,
                 ))
 
-    # D13: an optional cell left blank in one row.
+    # D13: an optional cell left blank in one row. Cells that held something
+    # unreadable are already logged under SPEC 4.1, so they are skipped here.
+    already_logged = {(i.source_file, i.source_row, i.column) for i in row_issues}
     for deal in deals:
         columns = SOURCE_COLUMNS[deal["source"]]
-        blank = [columns[f] for f in OPTIONAL_FIELDS if columns[f] is not None and deal[f] is None]
-        if blank:
+        for field in OPTIONAL_FIELDS:
+            column = columns[field]
+            if column is None or deal[field] is not None:
+                continue
+            if (deal["source_file"], deal["source_row"], column) in already_logged:
+                continue
+            if field == "customer":
+                kind, resolution = FLAG, "Kept; can't check whether it is a cross-system duplicate (D6)"
+            else:
+                kind, resolution = NOTE, "Left blank; no value invented"
             audit.append(AuditEntry(
                 check="D13",
-                kind=FLAG,
+                kind=kind,
                 records=[_record(deal)],
-                what_was_wrong=f"Blank {', '.join(blank)}",
-                resolution="Left blank; no value invented",
+                what_was_wrong=f"Blank {column}",
+                resolution=resolution,
                 impact=ZERO,
-                at_risk=ZERO,
+                at_risk=ZERO if kind == FLAG else None,
             ))
 
 
@@ -248,16 +305,22 @@ def _check_cross_system_duplicates(deals, audit):
     # D6: same normalized customer, product, annual ACV and close date in both
     # systems. Count it once, from HubSpot. Product is part of the key, so related
     # organizations buying different products are never merged.
+    # A blank name or close date is no evidence of a match, so those deals are skipped.
     def key(deal):
         return (normalize_name(deal["customer"]), deal["product"], deal["annual_acv"], deal["close_date"])
 
+    def comparable(deal):
+        return normalize_name(deal["customer"]) != "" and deal["close_date"] is not None
+
     hubspot_by_key = {}
     for deal in deals:
-        if deal["source"] == "HubSpot":
+        if deal["source"] == HUBSPOT and comparable(deal):
             hubspot_by_key.setdefault(key(deal), deal)
 
     for deal in deals:
-        hubspot = hubspot_by_key.get(key(deal)) if deal["source"] == "Salesforce" else None
+        if deal["source"] != SALESFORCE or not comparable(deal):
+            continue
+        hubspot = hubspot_by_key.get(key(deal))
         if hubspot is None:
             continue
         impact = _counted_ev(deal)
@@ -304,7 +367,7 @@ def _check_monthly_billing(deals, audit):
 def _check_past_due(deals, audit):
     # D9: open Q4 deal whose close date is before the as-of date. Keep; flag.
     for deal in deals:
-        if deal["in_forecast"] and deal["close_date"] < config.AS_OF_DATE:
+        if deal["in_forecast"] and deal["close_date"] is not None and deal["close_date"] < config.AS_OF_DATE:
             deal["flags"].append("past_due")
             audit.append(AuditEntry(
                 check="D9",
@@ -324,7 +387,7 @@ def _check_past_due(deals, audit):
 def _check_stage_probability(deals, audit):
     # D11: Salesforce stage probability differs from the standard for its stage. Flag only.
     for deal in deals:
-        if deal["source"] != "Salesforce":
+        if deal["source"] != SALESFORCE or deal["stage"] is None:  # missing stage: logged under 4.1
             continue
         if deal["stage"] == CLOSED_LOST and deal["stage_probability"] > 0:
             continue  # logged as D8
@@ -355,7 +418,9 @@ def _check_stage_probability(deals, audit):
 def _check_fiscal_period(deals, audit):
     # D12: fiscal period doesn't match the close date's quarter. Flag only.
     for deal in deals:
-        close_quarter = _quarter_of(deal["close_date"])
+        if deal["close_date"] is None:  # logged under 4.1
+            continue
+        close_quarter = quarter_of(deal["close_date"])
         if deal["fiscal_period"] == close_quarter:
             continue
         if deal["in_forecast"]:
@@ -404,10 +469,6 @@ def _record(deal):
         "deal_id": deal["deal_id"],
         "customer": deal["customer"],
     }
-
-
-def _quarter_of(day):
-    return f"Q{(day.month - 1) // 3 + 1}-{day.year}"
 
 
 def _money(amount):

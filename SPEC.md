@@ -141,6 +141,31 @@ number. Both values and the dollar difference are shown.
 
 ## 4. Data quality rules
 
+### 4.1 Missing or invalid values
+
+Principle: calculate when there's a clear formula; fill + log only when
+near-certain; never guess money, IDs, or probabilities.
+
+| Field | If missing or invalid |
+|---|---|
+| Amount | Set row aside, flag "needs review" |
+| Billing frequency | Set row aside, flag "needs review" |
+| Stage probability (Salesforce) | Fill from the standard value for its stage, log it; if stage also missing, set aside |
+| Stage probability (HubSpot) | Set row aside (no standard mapping for HubSpot stages) |
+| Stage | Flag "needs review" (can't tell if Closed Lost) |
+| Fiscal period | Calculate from close date, log it; if both missing, set aside |
+| Close date | Flag (affects past-due, quarter, and D6 matching) |
+| Product (HubSpot) | Fill "CareBridge", log it |
+| Product (Salesforce) | Set row aside, flag |
+| Customer name | Keep deal, flag (can't check D6) |
+| Deal ID | Set row aside, flag (can't dedupe or track week to week) |
+| Sales rep, region, created date | Leave blank, minor note |
+| VP scores (any missing or not 1–4) | Can't calculate GPA: not a Top deal; count in Longtail at stage probability; flag |
+| VP sheet GPA / win probability | Not used for the forecast; if blank, log "couldn't compare" |
+| VP row product blank | If the row has an ID: match by ID and use the Salesforce product. If no ID either: not a Top deal; count in Longtail at stage probability; flag |
+| VP row matches no deal, or product differs | Flag "needs review"; not a Top deal |
+| VP row: ID matches but rep differs | Trust the ID; note the rep mismatch |
+
 Every check is a general rule. Never hard-code deal IDs or names.
 Every issue found is written to the audit log with: source file, record(s),
 issue type, what was wrong, how it was resolved, and forecast $ impact

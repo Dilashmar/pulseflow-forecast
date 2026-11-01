@@ -7,6 +7,7 @@ from pipeline import config
 from pipeline.load import load_hubspot, load_salesforce, load_vp_scorecard
 from pipeline.standardize import (
     DEAL_FIELDS,
+    Action,
     standardize_hubspot,
     standardize_salesforce,
     standardize_vp,
@@ -126,10 +127,8 @@ def test_billing_frequency_trimmed_and_case_insensitive(data_dir, tmp_path):
         ("Billing_Frequency", ""),
         ("Amount", "abc"),
         ("Amount", ""),
-        ("Close_Date", "2026-13-40"),
-        ("Stage_Probability", "eighty"),
-        ("Stage_Probability", "1.5"),
-        ("Days_In_Stage", "ten"),
+        ("Opportunity_ID", ""),
+        ("Product", ""),
     ],
 )
 def test_bad_cell_excludes_only_that_row(data_dir, tmp_path, column, value):
@@ -143,11 +142,114 @@ def test_bad_cell_excludes_only_that_row(data_dir, tmp_path, column, value):
     issue = issues[0]
     assert issue.source_file == SF_CURRENT
     assert issue.source_row == 2
-    assert issue.record == "006PF000001L020YAC"
+    assert issue.record == (None if column == "Opportunity_ID" else "006PF000001L020YAC")
     assert issue.column == column
     assert issue.value == value
     assert issue.problem
+    assert issue.action == Action.SET_ASIDE
     assert issue.row_excluded
+
+
+# --- SPEC 4.1: fill, flag, or set aside -----------------------------------------
+# L020 is data row 0: Contract Negotiations, 0.80, close 2026-11-24, Q4-2026.
+
+def only_issue(issues):
+    assert len(issues) == 1, issues
+    return issues[0]
+
+
+@pytest.mark.parametrize("value", ["", "eighty", "1.5"])
+def test_salesforce_stage_probability_filled_from_stage(data_dir, tmp_path, value):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Stage_Probability", value)
+    deals, issues = sf(dst)
+    assert one(deals, "006PF000001L020YAC")["stage_probability"] == Decimal("0.80")
+    issue = only_issue(issues)
+    assert (issue.column, issue.action, issue.filled_value) == ("Stage_Probability", Action.FILLED, Decimal("0.80"))
+
+
+@pytest.mark.parametrize("stage", ["", "Verbal Commit"])
+def test_salesforce_stage_probability_set_aside_when_stage_missing_or_unknown(data_dir, tmp_path, stage):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Stage_Probability", "")
+    edit_csv_cell(dst, dst, 0, "Stage", stage)
+    deals, issues = sf(dst)
+    assert "006PF000001L020YAC" not in set(deals["deal_id"])
+    assert any(i.column == "Stage_Probability" and i.action == Action.SET_ASIDE for i in issues)
+
+
+def test_hubspot_stage_probability_set_aside(data_dir, tmp_path):
+    dst = tmp_path / HUBSPOT
+    edit_csv_cell(data_dir / HUBSPOT, dst, 0, "Stage_Probability", "")
+    deals, issues = hs(dst)
+    assert "HS-9001" not in set(deals["deal_id"])
+    assert only_issue(issues).action == Action.SET_ASIDE
+
+
+def test_missing_stage_kept_for_review(data_dir, tmp_path):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Stage", "")
+    deals, issues = sf(dst)
+    assert one(deals, "006PF000001L020YAC")["stage"] is None
+    assert (only_issue(issues).column, only_issue(issues).action) == ("Stage", Action.NEEDS_REVIEW)
+
+
+@pytest.mark.parametrize("value", ["", "Q5-2026", "Fourth quarter"])
+def test_fiscal_period_calculated_from_close_date(data_dir, tmp_path, value):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Fiscal_Period", value)
+    deals, issues = sf(dst)
+    assert one(deals, "006PF000001L020YAC")["fiscal_period"] == "Q4-2026"
+    issue = only_issue(issues)
+    assert (issue.column, issue.action, issue.filled_value) == ("Fiscal_Period", Action.FILLED, "Q4-2026")
+
+
+def test_fiscal_period_and_close_date_both_missing_set_aside(data_dir, tmp_path):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Fiscal_Period", "")
+    edit_csv_cell(dst, dst, 0, "Close_Date", "")
+    deals, issues = sf(dst)
+    assert "006PF000001L020YAC" not in set(deals["deal_id"])
+    assert any(i.action == Action.SET_ASIDE for i in issues)
+
+
+@pytest.mark.parametrize("value", ["", "2026-13-40"])
+def test_missing_or_invalid_close_date_kept_and_flagged(data_dir, tmp_path, value):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Close_Date", value)
+    deals, issues = sf(dst)
+    l020 = one(deals, "006PF000001L020YAC")
+    assert l020["close_date"] is None
+    assert l020["fiscal_period"] == "Q4-2026"
+    assert (only_issue(issues).column, only_issue(issues).action) == ("Close_Date", Action.FLAGGED)
+
+
+def test_hubspot_missing_product_filled_with_carebridge(data_dir, tmp_path):
+    dst = tmp_path / HUBSPOT
+    edit_csv_cell(data_dir / HUBSPOT, dst, 0, "Product", "")
+    deals, issues = hs(dst)
+    assert one(deals, "HS-9001")["product"] == "CareBridge"
+    issue = only_issue(issues)
+    assert (issue.column, issue.action, issue.filled_value) == ("Product", Action.FILLED, "CareBridge")
+
+
+def test_missing_customer_kept(data_dir, tmp_path):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, "Health_System", "")
+    deals, issues = sf(dst)
+    assert issues == []  # flagged by D13 in checks
+    assert one(deals, "006PF000001L020YAC")["customer"] is None
+
+
+@pytest.mark.parametrize("column, value", [("Created_Date", "last spring"), ("Days_In_Stage", "ten")])
+def test_unreadable_minor_field_left_blank(data_dir, tmp_path, column, value):
+    dst = tmp_path / SF_CURRENT
+    edit_csv_cell(data_dir / SF_CURRENT, dst, 0, column, value)
+    deals, issues = sf(dst)
+    field = {"Created_Date": "created_date", "Days_In_Stage": "days_in_stage"}[column]
+    assert one(deals, "006PF000001L020YAC")[field] is None
+    issue = only_issue(issues)
+    assert (issue.column, issue.value, issue.action) == (column, value, Action.LEFT_BLANK)
 
 
 def test_bad_hubspot_billing_frequency_excludes_only_that_row(data_dir, tmp_path):
@@ -207,6 +309,8 @@ def test_vp_invalid_score_excludes_only_that_row(data_dir, tmp_path, value):
     assert issues[0].record == "006PF000001T001"
     assert issues[0].column == "Leadership_Score"
     assert issues[0].row_excluded
+    assert "not a Top deal" in issues[0].resolution
+    assert "Longtail" in issues[0].resolution
 
 
 # Ironwood (data row 4) has no ID in the sheet, so it must be matched by name + product + rep.
@@ -221,6 +325,18 @@ def test_vp_row_without_id_needs_name_product_and_rep(data_dir, tmp_path, column
     assert len(rows) == 7
     assert "Ironwood Clinical" not in set(rows["customer"])
     assert [(i.source_row, i.column, i.row_excluded) for i in issues] == [(9, column, True)]
+
+
+def test_vp_row_with_id_keeps_row_when_product_blank(data_dir, tmp_path):
+    # Matched by ID; the product comes from the Salesforce deal (step 4).
+    dst = tmp_path / VP
+    edit_vp_cell(data_dir / VP, dst, 0, "Product", None)
+    rows, issues = vp(dst)
+    assert issues == []
+    assert len(rows) == 8
+    first = rows.iloc[0]
+    assert first["match_key"] == "006PF000001T001"
+    assert first["product"] is None
 
 
 def test_vp_row_with_id_keeps_row_when_name_and_rep_blank(data_dir, tmp_path):
@@ -251,6 +367,7 @@ def test_vp_sheet_value_blank_or_unreadable_keeps_row(data_dir, tmp_path, column
     assert (first["leadership_score"], first["commercial_score"], first["contractual_score"]) == (4, 4, 3)
     assert len(issues) == 1
     issue = issues[0]
+    assert issue.action == Action.NOT_COMPARED
     assert not issue.row_excluded
     assert (issue.source_row, issue.record, issue.column, issue.value) == (5, "006PF000001T001", column, value)
     assert issue.problem == f"couldn't compare to sheet ({reason})"

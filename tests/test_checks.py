@@ -6,14 +6,22 @@ import pandas as pd
 import pytest
 
 from pipeline import config
-from pipeline.checks import DECISION, FIX, FLAG, NEEDS_REVIEW, normalize_name, run_checks
-from pipeline.load import load_hubspot, load_salesforce
-from pipeline.standardize import DEAL_FIELDS, RowIssue, standardize_hubspot, standardize_salesforce
-from tests.helpers import copy_fixtures, edit_csv_cell, read_rows, write_rows
+from pipeline.checks import DECISION, FIX, FLAG, NEEDS_REVIEW, NOTE, normalize_name, run_checks
+from pipeline.load import load_hubspot, load_salesforce, load_vp_scorecard
+from pipeline.standardize import (
+    DEAL_FIELDS,
+    Action,
+    RowIssue,
+    standardize_hubspot,
+    standardize_salesforce,
+    standardize_vp,
+)
+from tests.helpers import copy_fixtures, edit_csv_cell, edit_vp_cell, read_rows, write_rows
 
 SF_CURRENT = config.FILES["sf_current"]
 SF_PRIOR = config.FILES["sf_prior"]
 HUBSPOT = config.FILES["hubspot"]
+VP = config.FILES["vp_scorecard"]
 
 # Data row positions (0 = first row after the header) in the SF current fixture.
 L020_ROW = 0           # Borealis North Surgery Clinic, Contract Negotiations 0.80, $300K
@@ -25,7 +33,9 @@ def build(data_dir):
     sf_current, current_issues = standardize_salesforce(load_salesforce(data_dir / SF_CURRENT))
     sf_prior, prior_issues = standardize_salesforce(load_salesforce(data_dir / SF_PRIOR))
     hubspot, hubspot_issues = standardize_hubspot(load_hubspot(data_dir / HUBSPOT))
-    return run_checks(sf_current, sf_prior, hubspot, current_issues + prior_issues + hubspot_issues)
+    _, vp_issues = standardize_vp(load_vp_scorecard(data_dir / VP))
+    return run_checks(sf_current, sf_prior, hubspot,
+                      current_issues + prior_issues + hubspot_issues + vp_issues)
 
 
 @pytest.fixture
@@ -265,19 +275,40 @@ def test_d13_fields_missing_from_hubspot(result):
     assert all(e.records[0]["source_file"] == HUBSPOT and e.impact == 0 for e in found)
 
 
-def test_d13_blank_optional_cell(work_dir):
-    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Region", "")
-    found = [e for e in entries(build(work_dir), "D13") if ids(e) == {"006PF000001L020YAC"}]
-    assert len(found) == 1
-    assert "Region" in found[0].what_was_wrong
+@pytest.mark.parametrize("column", ["Region", "Sales_Rep", "Created_Date"])
+def test_d13_blank_minor_field_is_a_note(work_dir, column):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, column, "")
+    (entry,) = [e for e in entries(build(work_dir), "D13") if ids(e) == {"006PF000001L020YAC"}]
+    assert entry.kind == NOTE
+    assert column in entry.what_was_wrong
 
 
-# --- Rows set aside in step 2 -------------------------------------------------
+def test_d13_blank_customer_is_a_flag(work_dir):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Health_System", "")
+    result = build(work_dir)
+    (entry,) = [e for e in entries(result, "D13") if ids(e) == {"006PF000001L020YAC"}]
+    assert entry.kind == FLAG
+    assert "duplicate" in entry.resolution
+    assert deal(result, "006PF000001L020YAC")["in_forecast"]
+
+
+def test_d6_never_matches_on_blank_names(work_dir):
+    # M001 and HS-9001 match on product, ACV and close date; with both names blank
+    # there is no evidence they are the same customer.
+    m001_row = 30
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, m001_row, "Health_System", "")
+    edit_csv_cell(work_dir / HUBSPOT, work_dir / HUBSPOT, 0, "Company_Name", "")
+    result = build(work_dir)
+    assert entries(result, "D6") == []
+    assert deal(result, "006PF000001M001YAC")["customer"] is None
+
+
+# --- SPEC 4.1: missing or invalid values ----------------------------------------
 
 def test_set_aside_row_is_logged_for_review(work_dir):
     edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Amount", "abc")
     result = build(work_dir)
-    (entry,) = entries(result, "Row")
+    (entry,) = entries(result, "4.1")
     assert entry.kind == NEEDS_REVIEW
     assert entry.records == [{"source_file": SF_CURRENT, "source_row": 2,
                               "deal_id": "006PF000001L020YAC", "customer": None}]
@@ -285,10 +316,66 @@ def test_set_aside_row_is_logged_for_review(work_dir):
     assert entry.impact == 0
 
 
-def test_kept_row_notes_are_not_logged_here():
-    # VP "couldn't compare to sheet" notes belong to D5 (step 4).
+@pytest.mark.parametrize("column", ["Stage_Probability", "Fiscal_Period"])
+def test_filled_value_logged_with_impact(work_dir, column):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, column, "")
+    result = build(work_dir)
+    (entry,) = entries(result, "4.1")
+    assert entry.kind == FIX
+    assert ids(entry) == {"006PF000001L020YAC"}
+    assert entry.impact == Decimal("-240000")  # would be missing if the row were set aside
+    assert deal(result, "006PF000001L020YAC")["in_forecast"]
+
+
+def test_hubspot_product_filled_and_logged(work_dir):
+    hs9006_row = 6  # CareBridge, $210K annual, 0.80
+    edit_csv_cell(work_dir / HUBSPOT, work_dir / HUBSPOT, hs9006_row, "Product", "")
+    result = build(work_dir)
+    (entry,) = entries(result, "4.1")
+    assert entry.kind == FIX
+    assert entry.impact == Decimal("-168000")
+    assert deal(result, "HS-9006")["product"] == "CareBridge"
+
+
+def test_missing_stage_kept_needs_review(work_dir):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Stage", "")
+    result = build(work_dir)
+    (entry,) = entries(result, "4.1")
+    assert entry.kind == NEEDS_REVIEW
+    assert entry.at_risk == Decimal("240000")
+    assert deal(result, "006PF000001L020YAC")["in_forecast"]
+    assert entries(result, "D11") == []  # no stage to compare
+
+
+def test_missing_close_date_kept_and_flagged(work_dir):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Close_Date", "")
+    result = build(work_dir)
+    (entry,) = entries(result, "4.1")
+    assert entry.kind == FLAG
+    assert entry.at_risk == Decimal("240000")
+    assert deal(result, "006PF000001L020YAC")["in_forecast"]
+    assert entries(result, "D12") == []
+    assert len(entries(result, "D9")) == 4  # unchanged
+
+
+def test_unreadable_minor_field_is_a_note(work_dir):
+    edit_csv_cell(work_dir / SF_CURRENT, work_dir / SF_CURRENT, L020_ROW, "Created_Date", "last spring")
+    (entry,) = entries(build(work_dir), "4.1")
+    assert entry.kind == NOTE
+    assert entry.impact == 0
+
+
+def test_vp_invalid_score_logged_as_not_a_top_deal(work_dir):
+    edit_vp_cell(work_dir / VP, work_dir / VP, 0, "Leadership_Score", 7)
+    (entry,) = entries(build(work_dir), "4.1")
+    assert entry.records[0]["source_file"] == VP
+    assert "not a Top deal" in entry.resolution
+    assert "Longtail" in entry.resolution
+
+
+def test_vp_sheet_notes_are_left_for_d5():
     note = RowIssue("3_vp_deal_scorecard.xlsx", 5, "X", "Composite_GPA", None,
-                    "couldn't compare to sheet (blank)", row_excluded=False)
+                    "couldn't compare to sheet (blank)", Action.NOT_COMPARED, "Scores used")
     no_deals = pd.DataFrame(columns=DEAL_FIELDS, dtype=object)
     result = run_checks(no_deals, no_deals, no_deals, [note])
     assert result.audit == []

@@ -1,18 +1,24 @@
 """Map each source to the standard deal fields (SPEC section 2).
 
-A row with a missing required value or a value that can't be read (bad
-amount, billing frequency, date, probability or score) is left out and
-returned as a RowIssue, which the checks turn into a "needs review" audit
-entry. The run continues.
+Missing or invalid values follow SPEC 4.1: calculate when there's a clear
+formula, fill only when near-certain, never guess money, IDs or
+probabilities. Every problem is returned as a RowIssue saying what was done
+(set aside, filled, kept and flagged, ...); the checks turn each one into an
+audit entry. The run always continues.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
 import pandas as pd
 
+from pipeline import config
 from pipeline.forecast import annual_acv, normalize_billing_frequency
+
+SALESFORCE = "Salesforce"
+HUBSPOT = "HubSpot"
 
 DEAL_FIELDS = [
     "deal_id", "match_key", "source", "customer", "product", "stage",
@@ -60,148 +66,253 @@ HUBSPOT_COLUMNS = {
 }
 
 SALESFORCE_MATCH_KEY_LENGTH = 15  # D3: 15- and 18-character IDs match on the first 15
+FISCAL_PERIOD_PATTERN = re.compile(r"Q[1-4]-\d{4}")
+MISSING = "missing value"
+
+SET_ASIDE_RESOLUTION = "Row set aside until it is fixed in the source system"
+NOT_TOP = "not a Top deal; the deal stays in the Longtail at its stage probability"
+
+
+class Action:
+    """What was done about a missing or invalid value (SPEC 4.1)."""
+
+    SET_ASIDE = "set aside"        # row left out; needs review
+    FILLED = "filled"              # calculated or filled from a clear rule; logged
+    NEEDS_REVIEW = "needs review"  # row kept; a person should check it
+    FLAGGED = "flagged"            # row kept; flag only
+    LEFT_BLANK = "left blank"      # unreadable minor field left blank; minor note
+    NOT_COMPARED = "not compared"  # VP sheet's own GPA / win probability unusable (D5)
 
 
 @dataclass(frozen=True)
 class RowIssue:
-    """A cell that is missing or unreadable.
-
-    row_excluded=True: the row is left out ("needs review").
-    row_excluded=False: the row is kept; only this cell is unusable
-    (the VP sheet's own GPA / win probability, so D5 can't compare).
-    """
-
     source_file: str
     source_row: int
     record: str | None
     column: str
     value: object
     problem: str
-    row_excluded: bool = True
+    action: str
+    resolution: str
+    filled_value: object = None
+
+    @property
+    def row_excluded(self):
+        return self.action == Action.SET_ASIDE
 
 
 def standardize_salesforce(df):
-    return _standardize_deals(df, SALESFORCE_COLUMNS, "Salesforce", SALESFORCE_MATCH_KEY_LENGTH)
+    return _standardize_deals(df, SALESFORCE_COLUMNS, SALESFORCE, SALESFORCE_MATCH_KEY_LENGTH)
 
 
 def standardize_hubspot(df):
-    return _standardize_deals(df, HUBSPOT_COLUMNS, "HubSpot", None)
+    return _standardize_deals(df, HUBSPOT_COLUMNS, HUBSPOT, None)
 
 
 def standardize_vp(df):
     rows, issues = [], []
     for raw in df.to_dict("records"):
-        reader = _RowReader(raw, raw["Opportunity_ID_15"] or raw["Hospital_Shorthand_Name"])
-        opportunity_id = reader.read("Opportunity_ID_15", _text)
-        # Without an ID the row is matched on name + product + rep (D4), so all three are needed.
+        row = _RowReader(raw, raw["Opportunity_ID_15"] or raw["Hospital_Shorthand_Name"])
+        opportunity_id = row.optional("Opportunity_ID_15", _text)
+        # With an ID the row is matched by ID and the deal's name, product and rep
+        # come from Salesforce. Without one it is matched on name + product + rep
+        # (D4), so all three are needed.
         no_id = opportunity_id is None
-        row = {
-            "rank": reader.read("Rank", _whole_number),
+        cant_match = f"Can't match without an ID: {NOT_TOP}"
+        cant_score = f"Can't calculate GPA: {NOT_TOP}"
+
+        def match_field(column):
+            return row.required(column, _text, cant_match) if no_id else row.optional(column, _text)
+
+        vp_row = {
+            "rank": row.optional("Rank", _whole_number),
             "match_key": opportunity_id[:SALESFORCE_MATCH_KEY_LENGTH] if opportunity_id else None,
-            "customer": reader.read("Hospital_Shorthand_Name", _text, required=no_id),
-            "product": reader.read("Product", _text, required=True),
-            "sales_rep": reader.read("Sales_Rep", _text, required=no_id),
-            "leadership_score": reader.read("Leadership_Score", _score, required=True),
-            "commercial_score": reader.read("Commercial_Score", _score, required=True),
-            "contractual_score": reader.read("Contractual_Score", _score, required=True),
-            "sheet_gpa": reader.read_sheet_value("Composite_GPA", _decimal),
-            "sheet_win_probability": reader.read_sheet_value("Win_Probability", _probability),
-            "vp_notes": reader.read("VP_Notes", _text),
+            "customer": match_field("Hospital_Shorthand_Name"),
+            "product": match_field("Product"),
+            "sales_rep": match_field("Sales_Rep"),
+            "leadership_score": row.required("Leadership_Score", _score, cant_score),
+            "commercial_score": row.required("Commercial_Score", _score, cant_score),
+            "contractual_score": row.required("Contractual_Score", _score, cant_score),
+            "sheet_gpa": row.sheet_value("Composite_GPA", _decimal),
+            "sheet_win_probability": row.sheet_value("Win_Probability", _probability),
+            "vp_notes": row.optional("VP_Notes", _text),
             "source_file": raw["source_file"],
             "source_row": raw["source_row"],
         }
-        issues.extend(reader.issues)
-        if not reader.excluded:
-            rows.append(row)
+        issues.extend(row.issues)
+        if not row.excluded:
+            rows.append(vp_row)
     return pd.DataFrame(rows, columns=VP_FIELDS, dtype=object), issues
+
+
+def quarter_of(day):
+    """Fiscal period for a date, e.g. 2026-11-24 -> "Q4-2026"."""
+    return f"Q{(day.month - 1) // 3 + 1}-{day.year}"
 
 
 def _standardize_deals(df, columns, source, match_key_length):
     deals, issues = [], []
     for raw in df.to_dict("records"):
-        deal_id = raw[columns["deal_id"]] or None
-        reader = _RowReader(raw, deal_id)
+        row = _RowReader(raw, raw[columns["deal_id"]] or None)
 
-        def read(field, parser=None, required=False):
-            return reader.read(columns[field], parser, required)
+        def required(field, parser=None):
+            return row.required(columns[field], parser, SET_ASIDE_RESOLUTION)
 
-        billing_frequency = read("billing_frequency", normalize_billing_frequency, required=True)
+        def optional(field, parser=None):
+            return row.optional(columns[field], parser)
+
+        deal_id = required("deal_id")  # can't dedupe or track week to week without it
+        amount = required("amount_raw", _decimal)
+        billing_frequency = required("billing_frequency", normalize_billing_frequency)
+        product = _product(row, columns["product"], source)
+        stage = _stage(row, columns["stage"])
+        close_date = _close_date(row, columns["close_date"])
+        fiscal_period = _fiscal_period(row, columns["fiscal_period"], close_date)
+        probability = _stage_probability(row, columns["stage_probability"], stage, source)
+
         deal = {
-            "deal_id": read("deal_id", required=True),
+            "deal_id": deal_id,
             "match_key": deal_id[:match_key_length] if deal_id and match_key_length else deal_id,
             "source": source,
-            "customer": read("customer"),
-            "product": read("product", required=True),
-            "stage": read("stage", required=True),
-            "stage_probability": read("stage_probability", _probability, required=True),
-            "amount_raw": read("amount_raw", _decimal, required=True),
+            "customer": optional("customer"),
+            "product": product,
+            "stage": stage,
+            "stage_probability": probability,
+            "amount_raw": amount,
             "billing_frequency": billing_frequency,
             "annual_acv": None,
-            "close_date": read("close_date", _date, required=True),
-            "fiscal_period": read("fiscal_period", required=True),
-            "sales_rep": read("sales_rep"),
-            "region": read("region"),
-            "created_date": read("created_date", _date),
-            "days_in_stage": read("days_in_stage", _whole_number),
+            "close_date": close_date,
+            "fiscal_period": fiscal_period,
+            "sales_rep": optional("sales_rep"),
+            "region": optional("region"),
+            "created_date": optional("created_date", _date),
+            "days_in_stage": optional("days_in_stage", _whole_number),
             "source_file": raw["source_file"],
             "source_row": raw["source_row"],
         }
-        issues.extend(reader.issues)
-        if reader.excluded:
+        issues.extend(row.issues)
+        if row.excluded:
             continue
-        deal["annual_acv"] = annual_acv(deal["amount_raw"], billing_frequency)
+        deal["annual_acv"] = annual_acv(amount, billing_frequency)
         deals.append(deal)
     return pd.DataFrame(deals, columns=DEAL_FIELDS, dtype=object), issues
 
 
+# --- SPEC 4.1 rules for individual fields ---------------------------------------
+
+def _product(row, column, source):
+    product, problem = row.value(column)
+    if problem is None:
+        return product
+    if source == HUBSPOT:
+        # HubSpot only holds the acquired CareBridge business.
+        filled = config.HUBSPOT_PRODUCT
+        row.note(column, problem, Action.FILLED,
+                 f"Filled with {filled}, the only product sold through HubSpot", filled)
+        return filled
+    row.note(column, problem, Action.SET_ASIDE, SET_ASIDE_RESOLUTION)
+    return None
+
+
+def _stage(row, column):
+    stage, problem = row.value(column)
+    if problem:
+        row.note(column, problem, Action.NEEDS_REVIEW,
+                 "Kept in the forecast; can't tell whether it is Closed Lost")
+    return stage
+
+
+def _close_date(row, column):
+    close_date, problem = row.value(column, _date)
+    if problem:
+        row.note(column, problem, Action.FLAGGED,
+                 "Kept; past-due, quarter and cross-system duplicate checks can't use it")
+    return close_date
+
+
+def _fiscal_period(row, column, close_date):
+    period, problem = row.value(column, _fiscal_period_text)
+    if problem is None:
+        return period
+    if close_date is None:
+        row.note(column, problem, Action.SET_ASIDE,
+                 "Row set aside: no usable fiscal period or close date, so the quarter is unknown")
+        return None
+    filled = quarter_of(close_date)
+    row.note(column, problem, Action.FILLED, f"Calculated {filled} from close date {close_date}", filled)
+    return filled
+
+
+def _stage_probability(row, column, stage, source):
+    probability, problem = row.value(column, _probability)
+    if problem is None:
+        return probability
+    standard = config.STAGE_PROBABILITIES.get(stage) if source == SALESFORCE else None
+    if standard is None:
+        reason = ("there is no standard probability for HubSpot stages" if source == HUBSPOT
+                  else f"there is no standard probability for stage {stage!r}")
+        row.note(column, problem, Action.SET_ASIDE, f"Row set aside: {reason}")
+        return None
+    row.note(column, problem, Action.FILLED, f"Filled with the standard {standard:.0%} for {stage}", standard)
+    return standard
+
+
+# --- Reading cells --------------------------------------------------------------
+
 class _RowReader:
-    """Reads cells from one raw row, collecting a RowIssue for each bad cell."""
+    """Reads cells from one raw row and collects a RowIssue for each problem."""
 
     def __init__(self, raw, record):
         self.raw = raw
         self.record = record
         self.issues = []
 
-    def read(self, column, parser=None, required=False):
-        if column is None:
-            return None
-        value = self.raw[column]
-        if value is None or value == "":
-            if required:
-                self._flag(column, value, "missing value")
-            return None
+    def value(self, column, parser=None):
+        """Return (value, problem). problem is None, MISSING, or why the cell can't be read."""
+        if column is None:  # not in this source (D13)
+            return None, None
+        cell = self.raw[column]
+        if cell is None or cell == "":
+            return None, MISSING
         if parser is None:
-            return value
+            return cell, None
         try:
-            return parser(value)
+            return parser(cell), None
         except ValueError as e:
-            self._flag(column, value, str(e))
-            return None
+            return None, str(e)
 
-    def read_sheet_value(self, column, parser):
-        """The VP sheet's own GPA / win probability, used only for the D5 comparison.
+    def required(self, column, parser, resolution):
+        """Missing or unreadable: set the row aside."""
+        value, problem = self.value(column, parser)
+        if problem:
+            self.note(column, problem, Action.SET_ASIDE, resolution)
+        return value
 
-        Blank or unreadable: keep the row (the scores still work) and note that
-        the sheet couldn't be compared.
-        """
-        value = self.raw[column]
-        try:
-            if value is None or value == "":
-                raise ValueError("blank")
-            return parser(value)
-        except ValueError as e:
-            self._flag(column, value, f"couldn't compare to sheet ({e})", row_excluded=False)
-            return None
+    def optional(self, column, parser=None):
+        """Blank stays blank (D13 notes it); unreadable is left blank with a minor note."""
+        value, problem = self.value(column, parser)
+        if problem and problem != MISSING:
+            self.note(column, problem, Action.LEFT_BLANK, "Left blank; no value invented")
+        return value
+
+    def sheet_value(self, column, parser):
+        """The VP sheet's own GPA / win probability: only compared to the formula (D5)."""
+        value, problem = self.value(column, parser)
+        if problem:
+            reason = "blank" if problem == MISSING else problem
+            self.note(column, f"couldn't compare to sheet ({reason})", Action.NOT_COMPARED,
+                      "Kept; GPA calculated from the scores")
+        return value
+
+    def note(self, column, problem, action, resolution, filled_value=None):
+        self.issues.append(RowIssue(
+            self.raw["source_file"], self.raw["source_row"], self.record,
+            column, self.raw[column], problem, action, resolution, filled_value,
+        ))
 
     @property
     def excluded(self):
         return any(issue.row_excluded for issue in self.issues)
-
-    def _flag(self, column, value, problem, row_excluded=True):
-        self.issues.append(RowIssue(
-            self.raw["source_file"], self.raw["source_row"], self.record,
-            column, value, problem, row_excluded,
-        ))
 
 
 def _text(value):
@@ -244,3 +355,9 @@ def _date(value):
         return date.fromisoformat(str(value).strip())
     except ValueError:
         raise ValueError("not a valid date (expected YYYY-MM-DD)") from None
+
+
+def _fiscal_period_text(value):
+    if not FISCAL_PERIOD_PATTERN.fullmatch(value):
+        raise ValueError("not a fiscal period (expected e.g. Q4-2026)")
+    return value

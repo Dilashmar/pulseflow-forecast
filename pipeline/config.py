@@ -20,6 +20,9 @@ STAGE_PROBABILITIES = {
     "Closed Lost": Decimal("0.00"),
 }
 
+# HubSpot only holds the acquired CareBridge business (SPEC 4.1: fills a blank Product).
+HUBSPOT_PRODUCT = "CareBridge"
+
 # Input file names inside the --data folder. Each week's files keep these names.
 FILES = {
     "sf_current": "1_sfdc_pipeline_current.csv",
