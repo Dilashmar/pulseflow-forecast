@@ -2,7 +2,43 @@ from decimal import Decimal
 
 import pytest
 
-from pipeline.forecast import UnknownBillingFrequency, annual_acv, normalize_billing_frequency
+from pipeline.forecast import (
+    UnknownBillingFrequency,
+    annual_acv,
+    gpa,
+    gpa_x100,
+    normalize_billing_frequency,
+    product_line,
+    round_gpa,
+    win_probability,
+)
+
+
+def test_gpa_is_exact_integer_math():
+    assert gpa_x100(4, 4, 3) == 340
+    assert isinstance(gpa_x100(4, 4, 3), int)
+    assert gpa(340) == Decimal("3.40")
+
+
+@pytest.mark.parametrize("x100, expected", [
+    (400, "0.75"), (320, "0.75"),  # GPA >= 3.20
+    (300, "0.50"), (240, "0.50"),  # 2.40 <= GPA < 3.20
+    (220, "0.30"), (160, "0.30"),  # 1.60 <= GPA < 2.40
+    (140, "0.10"), (100, "0.10"),  # GPA < 1.60
+])
+def test_win_probability_cutoffs(x100, expected):
+    assert win_probability(x100) == Decimal(expected)
+
+
+def test_round_gpa_half_up():
+    assert round_gpa(Decimal("3.395")) == Decimal("3.40")
+    assert round_gpa(Decimal("3.2")) == Decimal("3.20")
+
+
+def test_product_lines():
+    assert {product_line(p) for p in ["PulseOR", "BedFlow", "InfusionIQ"]} == {"Core Salesforce"}
+    assert product_line("CareBridge") == "Acquired CareBridge"
+    assert product_line("SurgiSync") == "Other"
 
 
 def test_monthly_amount_times_12():

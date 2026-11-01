@@ -20,6 +20,15 @@ STAGE_PROBABILITIES = {
     "Closed Lost": Decimal("0.00"),
 }
 
+# Product -> product line for the Longtail split (SPEC 3.4). A product not listed
+# here is counted under "Other" and flagged.
+PRODUCT_LINES = {
+    "PulseOR": "Core Salesforce",
+    "BedFlow": "Core Salesforce",
+    "InfusionIQ": "Core Salesforce",
+    "CareBridge": "Acquired CareBridge",
+}
+
 # HubSpot only holds the acquired CareBridge business (SPEC 4.1: fills a blank Product).
 HUBSPOT_PRODUCT = "CareBridge"
 

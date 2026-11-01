@@ -1,9 +1,10 @@
 """Data quality rules (SPEC section 4); each issue becomes an audit entry.
 
-D1, D2 and D6-D13 run here, plus the SPEC 4.1 missing/invalid value issues
-found while reading (labelled "4.1"). D3 (15/18-char IDs) is handled by
-match_key and logged with week-over-week; D4 and D5 run with the Top deal
-scoring. Every rule is general: no deal IDs or names appear in the logic.
+run_checks: D1, D2 and D6-D13, plus the SPEC 4.1 missing/invalid value
+issues found while reading (labelled "4.1").
+check_vp_scorecard: D4 (match VP rows to deals) and D5 (sheet vs formula).
+D3 (15/18-char IDs) is handled by match_key and logged with week-over-week.
+Every rule is general: no deal IDs or names appear in the logic.
 
 Excluded deals are not deleted: they stay in `deals` with in_forecast=False
 and an exclusion_reason. Only extra copies of the same row (D1, D2) are
@@ -21,7 +22,19 @@ from decimal import Decimal
 import pandas as pd
 
 from pipeline import config
-from pipeline.forecast import ACV_MULTIPLIERS, CLOSED_LOST, is_active_q4, stage_expected_value
+from pipeline.forecast import (
+    ACV_MULTIPLIERS,
+    CLOSED_LOST,
+    OTHER,
+    expected_value,
+    gpa,
+    is_active_q4,
+    product_line,
+    round_gpa,
+    stage_expected_value,
+    vp_row_gpa_x100,
+    win_probability,
+)
 from pipeline.standardize import (
     DEAL_FIELDS,
     HUBSPOT,
@@ -87,6 +100,7 @@ def run_checks(sf_current, sf_prior, hubspot, row_issues):
     _check_excluded(deals, audit)
     _check_cross_system_duplicates(deals, audit)
     _log_row_issues(row_issues, deals, audit)
+    _check_product_line(deals, audit)
     _check_monthly_billing(deals, audit)
     _check_past_due(deals, audit)
     _check_stage_probability(deals, audit)
@@ -153,6 +167,22 @@ def _log_row_issues(row_issues, deals, audit):
 def _describe(issue):
     shown = "blank" if issue.value in (None, "") else repr(issue.value)
     return f"{issue.column} {shown}: {issue.problem}"
+
+
+def _check_product_line(deals, audit):
+    # SPEC 3.4 / 4.1: a product outside the known product lines is still counted,
+    # under "Other", and flagged rather than guessed into Core or CareBridge.
+    for deal in deals:
+        if deal["in_forecast"] and product_line(deal["product"]) == OTHER:
+            audit.append(AuditEntry(
+                check="4.1",
+                kind=FLAG,
+                records=[_record(deal)],
+                what_was_wrong=f"Product {deal['product']!r} is not in a known product line",
+                resolution=f"Counted in the total under {OTHER}",
+                impact=ZERO,
+                at_risk=stage_expected_value(deal),
+            ))
 
 
 # --- D1, D2: duplicates within one file ---------------------------------------
@@ -440,6 +470,204 @@ def _check_fiscal_period(deals, audit):
             impact=ZERO,
             at_risk=at_risk,
         ))
+
+
+# --- D4, D5: VP scorecard ---------------------------------------------------------
+
+NOT_TOP_REVIEW = "Not a Top deal; any matching deal stays in the Longtail at its stage probability"
+
+
+@dataclass
+class TopDealMatches:
+    matches: dict           # deal_id -> VP row, for matched, active Q4 deals (the Top bucket)
+    audit: list
+
+
+def check_vp_scorecard(vp_rows, deals, row_issues):
+    """Match each VP row to a current Salesforce deal (D4) and compare the
+    sheet's own GPA / win probability to the formula (D5).
+
+    Rows are matched against all current Salesforce deals, including excluded
+    ones, so "no longer active" can be told apart from "no match"."""
+    audit = []
+    salesforce = [d for d in deals.to_dict("records") if d["source"] == SALESFORCE]
+    by_match_key = {d["match_key"]: d for d in salesforce}
+    matches, matched_from = {}, {}
+
+    for vp in vp_rows.to_dict("records"):
+        deal = _match_vp_row(vp, salesforce, by_match_key, audit)
+        if deal is None:
+            continue
+
+        if deal["deal_id"] in matches:
+            audit.append(_vp_needs_review(
+                vp, f"Points at the same deal as VP row {matched_from[deal['deal_id']]} ({deal['deal_id']})",
+                [deal], resolution=f"The first row is used; this row is {NOT_TOP_REVIEW[0].lower()}{NOT_TOP_REVIEW[1:]}",
+            ))
+            continue
+
+        top_value = expected_value(deal["annual_acv"], win_probability(vp_row_gpa_x100(vp)))
+        if not deal["in_forecast"]:
+            # D4: the VP still ranks it, but the deal doesn't count this quarter.
+            audit.append(AuditEntry(
+                check="D4",
+                kind=FIX,
+                records=[_vp_record(vp), _record(deal)],
+                what_was_wrong=(f"VP row matches {deal['deal_id']}, which is not in the "
+                                f"{config.FORECAST_QUARTER} forecast ({deal['exclusion_reason']})"),
+                resolution="Top deal no longer active in Q4: left out of the Top deals",
+                impact=top_value,
+            ))
+            continue
+
+        if vp["match_key"] is None:
+            # D4: no ID in the sheet, matched by name + product + rep.
+            audit.append(AuditEntry(
+                check="D4",
+                kind=FIX,
+                records=[_vp_record(vp), _record(deal)],
+                what_was_wrong="VP row has no Opportunity ID",
+                resolution=(f"Matched by name, product and rep to {deal['deal_id']} "
+                            f"({deal['customer']}); scored as a Top deal"),
+                impact=stage_expected_value(deal) - top_value,
+            ))
+
+        matches[deal["deal_id"]] = vp
+        matched_from[deal["deal_id"]] = vp["source_row"]
+        _compare_to_sheet(vp, deal, audit)
+
+    _log_sheet_notes(row_issues, audit)
+    return TopDealMatches(matches=matches, audit=audit)
+
+
+def update_past_due_at_risk(audit, forecast_deals):
+    """D9 at-risk was stage-based; restate it with each deal's final expected
+    value, so a past-due Top deal uses its GPA-based value."""
+    values = dict(zip(forecast_deals["deal_id"], forecast_deals["expected_value"]))
+    for entry in audit:
+        if entry.check == "D9":
+            entry.at_risk = values[entry.records[0]["deal_id"]]
+
+
+def _match_vp_row(vp, salesforce, by_match_key, audit):
+    """D4 and SPEC 4.1: return the matched deal, or None (logged) if there isn't exactly one."""
+    if vp["match_key"] is not None:
+        deal = by_match_key.get(vp["match_key"])
+        if deal is None:
+            audit.append(_vp_needs_review(vp, f"ID {vp['match_key']} matches no current Salesforce deal"))
+            return None
+        if vp["product"] is not None and not _same_text(vp["product"], deal["product"]):
+            audit.append(_vp_needs_review(
+                vp, f"Product {vp['product']} differs from Salesforce product {deal['product']} "
+                    f"for {deal['deal_id']}", [deal]))
+            return None
+        if vp["sales_rep"] is not None and not _same_text(vp["sales_rep"], deal["sales_rep"]):
+            audit.append(AuditEntry(
+                check="D4",
+                kind=NOTE,
+                records=[_vp_record(vp), _record(deal)],
+                what_was_wrong=f"Rep {vp['sales_rep']} differs from Salesforce rep {deal['sales_rep']}",
+                resolution="Matched by ID; the ID is trusted",
+                impact=ZERO,
+            ))
+        return deal
+
+    # No ID: first word of the name + product + rep must match exactly one deal.
+    candidates = [
+        d for d in salesforce
+        if _first_word(d["customer"]) == _first_word(vp["customer"])
+        and _same_text(d["product"], vp["product"])
+        and _same_text(d["sales_rep"], vp["sales_rep"])
+    ]
+    if len(candidates) != 1:
+        audit.append(_vp_needs_review(
+            vp, f"No ID; name, product and rep match {len(candidates)} Salesforce deals (need exactly 1)",
+            candidates))
+        return None
+    return candidates[0]
+
+
+def _compare_to_sheet(vp, deal, audit):
+    # D5: the sheet's Composite_GPA and Win_Probability are recalculated, not trusted.
+    x100 = vp_row_gpa_x100(vp)
+    formula_gpa, formula_probability = gpa(x100), win_probability(x100)
+    sheet_gpa, sheet_probability = vp["sheet_gpa"], vp["sheet_win_probability"]
+
+    problems = []
+    if sheet_gpa is not None and round_gpa(sheet_gpa) != formula_gpa:
+        problems.append(f"sheet GPA {round_gpa(sheet_gpa)} vs formula {formula_gpa}")
+    probability_differs = sheet_probability is not None and sheet_probability != formula_probability
+    if probability_differs:
+        problems.append(f"sheet win probability {sheet_probability:.0%} vs formula {formula_probability:.0%}")
+    if not problems:
+        return
+
+    records = [_vp_record(vp), _record(deal)]
+    if probability_differs:
+        difference = (expected_value(deal["annual_acv"], sheet_probability)
+                      - expected_value(deal["annual_acv"], formula_probability))
+        audit.append(AuditEntry(
+            check="D5",
+            kind=DECISION,
+            records=records,
+            what_was_wrong="; ".join(problems).capitalize(),
+            resolution=(f"Formula used by default ({_money(expected_value(deal['annual_acv'], formula_probability))}); "
+                        f"the dashboard toggle applies the VP's number ({_money(difference)} difference)"),
+            impact=difference,
+            reasoning=("Every Top deal is scored by the same formula so the forecast is consistent; "
+                       "the VP's judgment is kept visible as an override the meeting can apply."),
+        ))
+    else:
+        audit.append(AuditEntry(
+            check="D5",
+            kind=FLAG,
+            records=records,
+            what_was_wrong="; ".join(problems).capitalize(),
+            resolution="GPA recalculated from the scores; the win probability is unchanged",
+            impact=ZERO,
+            at_risk=ZERO,
+        ))
+
+
+def _log_sheet_notes(row_issues, audit):
+    # D5: the sheet's own GPA / win probability was blank or unreadable.
+    for issue in row_issues:
+        if issue.action == Action.NOT_COMPARED:
+            audit.append(AuditEntry(
+                check="D5",
+                kind=FLAG,
+                records=[{"source_file": issue.source_file, "source_row": issue.source_row,
+                          "deal_id": issue.record, "customer": None}],
+                what_was_wrong=_describe(issue),
+                resolution=issue.resolution,
+                impact=ZERO,
+                at_risk=ZERO,
+            ))
+
+
+def _vp_needs_review(vp, what_was_wrong, deals=(), resolution=NOT_TOP_REVIEW):
+    return AuditEntry(
+        check="D4",
+        kind=NEEDS_REVIEW,
+        records=[_vp_record(vp)] + [_record(d) for d in deals],
+        what_was_wrong=what_was_wrong,
+        resolution=resolution,
+        impact=ZERO,
+    )
+
+
+def _vp_record(vp):
+    return {"source_file": vp["source_file"], "source_row": vp["source_row"],
+            "deal_id": vp["match_key"], "customer": vp["customer"]}
+
+
+def _first_word(name):
+    words = normalize_name(name).split()
+    return words[0] if words else None
+
+
+def _same_text(a, b):
+    return a is not None and b is not None and a.strip().casefold() == b.strip().casefold()
 
 
 # --- Helpers ------------------------------------------------------------------
