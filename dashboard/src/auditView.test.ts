@@ -1,127 +1,101 @@
 import { describe, expect, it } from "vitest";
 
-import { auditTable, auditView } from "./auditView";
+import { auditView } from "./auditView";
 import { audit, forecast } from "./data";
 import type { AuditFile } from "./types";
 
-const view = auditView(audit, forecast);
-const groupSummary = (groups: typeof view.fixes) => groups.map((g) => [g.title, g.countText]);
+const all = auditView(audit, forecast);
+const tab = (view: ReturnType<typeof auditView>, label: string) => view.tabs.find((t) => t.label === label)!;
+const issue = (view: ReturnType<typeof auditView>, tabLabel: string, title: string) =>
+  tab(view, tabLabel).issues.find((i) => i.title === title)!;
 
-describe("summary", () => {
-  it("counts only, no dollar figure", () => {
-    expect(view.summary).toBe("25 issues fixed automatically · 3 judgment calls need your attention");
-  });
-
-  it("every audit entry appears exactly once", () => {
-    const shown = [...view.judgmentCalls, ...view.attention, ...view.fixes, ...view.notes]
-      .reduce((sum, g) => sum + g.items.length, 0);
-    expect(shown).toBe(audit.entries.length);
-  });
-});
-
-describe("judgment calls: the only place with dollars", () => {
-  it("one card per title, in check order", () => {
-    expect(view.judgmentCalls.map((j) => [j.title, j.amount])).toEqual([
-      ["VP override", "+$550K impact"],
-      ["Duplicate across Salesforce and HubSpot", "+$144K impact"],
-      ["Past-due deals", "$812K at risk"],
-    ]);
-  });
-
-  it("each with the decision, the reasoning and its deals", () => {
-    const [vp, , pastDue] = view.judgmentCalls;
-    expect(vp.decision).toMatch(/^Formula used by default/);
-    expect(vp.reasoning).toMatch(/^Every Top deal is scored by the same formula/);
-    expect(vp.items.map((d) => [d.name, d.dealId])).toEqual([["Ironwood Clinical Center & Health System", "006PF000001T005YAC"]]);
-    expect(pastDue.items.map((d) => [d.name?.split(" ")[0], d.amount])).toEqual([
-      ["Hyperion", "$360K at risk"], ["Obsidian", "$180K at risk"], ["Valkyrie", "$200K at risk"], ["Zephyr", "$72K at risk"],
+describe("summary and the source-file filter", () => {
+  it("one line, then each of the 4 files with its count", () => {
+    expect(all.summary).toBe("40 issues found across the 4 source files");
+    expect(all.files.map((f) => [f.label, f.count])).toEqual([
+      ["All files", 40],
+      ["Salesforce (this week)", 19],
+      ["Salesforce (last week)", 6],
+      ["VP scorecard", 9],
+      ["HubSpot", 16],
     ]);
   });
 });
 
-describe("fixed issues, grouped by title", () => {
-  it("largest group first, with counts and no dollars", () => {
-    expect(groupSummary(view.fixes)).toEqual([
-      ["Monthly billing converted to annual", "7 deals"],
-      ["Outside the forecast quarter, left out", "5 deals"],
-      ["VP rows matched by name", "4 deals"],
-      ["VP sheet matched by short ID", "4 deals"],
-      ["Closed Lost deals left out", "2 deals"],
-      ["Duplicate rows removed", "2 deals"],
-      ["Conflicting versions, kept the latest", "1 deal"],
+describe("tabs by type of issue", () => {
+  it("judgment calls, fixes, notes; every entry counted once", () => {
+    expect(all.tabs.map((t) => [t.label, t.count])).toEqual([
+      ["Judgment calls", 6], ["Fixed automatically", 25], ["Notes", 9],
     ]);
-    expect(view.fixes[0].items[0]).not.toHaveProperty("amount");
+    expect(all.tabs.reduce((n, t) => n + t.count, 0)).toBe(audit.entries.length);
   });
 
-  it("each deal: name, what was wrong, and a link to its panel", () => {
-    expect(view.fixes[0].items[0]).toEqual({
-      name: "Aethelgard Post-Acute Care", dealId: "HS-9001", detail: "Amount $15,000 is billed monthly",
-    });
-  });
-});
-
-describe("notes: no effect on the forecast, collapsed", () => {
-  it("grouped the same way", () => {
-    expect(groupSummary(view.notes)).toEqual([
-      ["Short Salesforce IDs matched", "6 deals"],
-      ["Columns missing from a file", "3 issues"],
+  it("issues largest first, each with the pipeline's short resolution", () => {
+    expect(tab(all, "Fixed automatically").issues.map((i) => [i.title, i.countText])).toEqual([
+      ["Monthly billing converted to annual", "7 records"],
+      ["Outside the forecast quarter, left out", "5 records"],
+      ["VP rows matched by name", "4 records"],
+      ["VP sheet matched by short ID", "4 records"],
+      ["Closed Lost deals left out", "2 records"],
+      ["Duplicate rows removed", "2 records"],
+      ["Conflicting versions, kept the latest", "1 record"],
     ]);
-    expect(view.notesSummary).toBe("9 notes with no effect on the forecast");
+    expect(issue(all, "Fixed automatically", "Monthly billing converted to annual").resolution).toBe("Annual value = amount × 12");
   });
 
-  it("an entry about a whole file has no deal to open", () => {
-    expect(view.notes[1].items[0]).toEqual({ name: null, dealId: null, detail: "HubSpot has no Region column" });
-  });
-});
-
-describe("needs a check (Needs review, Flag)", () => {
-  it("none this week", () => {
-    expect(view.attention).toEqual([]);
+  it("judgment calls also show their dollars", () => {
+    expect(issue(all, "Judgment calls", "VP override").resolution)
+      .toBe("Formula by default; the VP overrides switch applies the VP's number · +$550K impact");
+    expect(issue(all, "Judgment calls", "Past-due deals").resolution).toBe("Kept in the forecast and flagged · $812K at risk");
   });
 
-  it("shown when present, and counted in the summary", () => {
+  it("a Needs a check tab comes first, only when there is something to check", () => {
     const flagged: AuditFile = {
       ...audit,
-      entries: [...audit.entries, {
-        ...audit.entries[0], check: "D2", kind: "Needs review", title: "Conflicting versions, latest unclear", impact: 0,
-      }],
+      entries: [...audit.entries, { ...audit.entries[0], kind: "Needs review", title: "Conflicting versions, latest unclear", action: "Kept the first row; needs a check" }],
     };
-    const v = auditView(flagged, forecast);
-    expect(groupSummary(v.attention)).toEqual([["Conflicting versions, latest unclear", "1 deal"]]);
-    expect(v.summary).toBe("25 issues fixed automatically · 3 judgment calls need your attention · 1 issue needs a check");
+    const view = auditView(flagged, forecast);
+    expect(view.tabs.map((t) => [t.label, t.count])[0]).toEqual(["Needs a check", 1]);
   });
 });
 
-describe("Show all issues: the full table", () => {
-  const rows = auditTable(audit, forecast);
-
-  it("one row per entry in audit_log.json", () => {
-    expect(rows).toHaveLength(audit.entries.length);
-    expect(rows).toHaveLength(audit.summary.entries);
+describe("expanded issue: one line per record, with where it is", () => {
+  it("customer, file and row, and what was wrong", () => {
+    expect(issue(all, "Judgment calls", "Past-due deals").records[0]).toEqual({
+      name: "Hyperion Health System",
+      dealId: "006PF000001L001YAC",
+      where: "Salesforce (this week) row 3",
+      wrong: "Close date 2026-10-05 is before 2026-10-15 but the deal is still open",
+    });
   });
 
-  it("source file and record, one line per record", () => {
-    const [first] = rows;
-    expect(first.records).toEqual([
-      { file: "1_sfdc_pipeline_current.csv", record: "Row 17 · Cascadia Crest Medical", dealId: "006PF000001L014YAC" },
-      { file: "1_sfdc_pipeline_current.csv", record: "Row 18 · Cascadia Crest Medical", dealId: "006PF000001L014YAC" },
+  it("rows in the same file are joined; records in two files list both", () => {
+    expect(issue(all, "Fixed automatically", "Duplicate rows removed").records[0].where).toBe("Salesforce (this week) rows 17, 18");
+    expect(issue(all, "Judgment calls", "VP override").records[0].where).toBe("VP scorecard row 9 · Salesforce (this week) row 28");
+  });
+
+  it("an issue about a whole file has no customer", () => {
+    const missing = issue(all, "Notes", "Columns missing from a file").records[0];
+    expect([missing.name, missing.dealId, missing.where]).toEqual([null, null, "HubSpot, whole file"]);
+  });
+});
+
+describe("filtered to one source file", () => {
+  const hubspot = auditView(audit, forecast, "4_carebridge_hubspot_export.csv");
+
+  it("tab counts and records follow the file", () => {
+    expect(hubspot.tabs.map((t) => [t.label, t.count])).toEqual([
+      ["Judgment calls", 2], ["Fixed automatically", 11], ["Notes", 3],
     ]);
-    expect([first.title, first.issue, first.resolution]).toEqual([
-      "Duplicate rows removed", "Row 18 is an exact copy of row 17", "Kept row 17; dropped the copy",
-    ]);
+    expect(issue(hubspot, "Judgment calls", "Past-due deals").records.map((r) => r.name)).toEqual(["Zephyr Valley Senior Care"]);
+    expect(tab(hubspot, "Fixed automatically").issues.map((i) => i.title)).not.toContain("VP rows matched by name");
   });
 
-  it("$ impact: signed, $0, or the at-risk amount", () => {
-    expect(rows[0].impact).toBe("+$320K");
-    expect(rows.find((r) => r.title === "Monthly billing converted to annual")!.impact).toBe("−$132K");
-    expect(rows.find((r) => r.title === "Past-due deals")!.impact).toBe("$360K at risk");
-    const wholeFile = rows.find((r) => r.title === "Columns missing from a file")!;
-    expect(wholeFile.impact).toBe("$0");
-    expect(wholeFile.records).toEqual([{ file: "4_carebridge_hubspot_export.csv", record: "Whole file", dealId: null }]);
+  it("the file filter's own counts don't change", () => {
+    expect(hubspot.files).toEqual(all.files);
   });
 
-  it("a record with a short ID links to the full deal", () => {
-    const shortId = rows.find((r) => r.title === "Short Salesforce IDs matched")!;
-    expect(shortId.records[0].dealId).toBe("006PF000001L002YAC");
+  it("a type with nothing in that file is empty", () => {
+    expect(tab(auditView(audit, forecast, "3_vp_deal_scorecard.xlsx"), "Notes").issues).toEqual([]);
   });
 });

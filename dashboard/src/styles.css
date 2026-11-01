@@ -1213,7 +1213,7 @@ tr.selected > :first-child {
   color: var(--label);
 }
 
-/* --- Data Audit tab --------------------------------------------------------------- */
+/* --- Data Hygiene & Audit Log: file filter, type tabs, then the issues --------- */
 
 .data-audit {
   flex: 1;
@@ -1222,225 +1222,194 @@ tr.selected > :first-child {
   flex-direction: column;
 }
 
-.data-audit-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: var(--space-4);
+.audit-head {
+  padding: var(--space-3) var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.audit-summary {
-  margin: var(--space-1) 0 0;
-  font-size: 15px;
-  font-weight: 600;
+.audit-head h2 {
+  font-size: 18px;
+  font-weight: 700;
 }
 
-.audit-heading {
-  margin-bottom: var(--space-2);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.judgment-calls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
-}
-
-.judgment-card {
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--vp);
-  border-radius: var(--radius);
-}
-
-.judgment-card p {
-  margin: var(--space-2) 0 0;
-}
-
-.judgment-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.judgment-head h4 {
+.audit-head .record-count {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
 }
 
-.judgment-amount {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.judgment-deals,
-.group-items {
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.judgment-deals li,
-.group-items li {
+/* 1. Source file: pills with counts. */
+.file-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 var(--space-2);
-  padding: var(--space-1) 0;
-  border-top: 1px solid var(--border);
-}
-
-.judgment-deal-amount {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-.audit-item-detail {
-  flex-basis: 100%;
-  font-size: 13px;
-  color: var(--label);
-}
-
-/* Groups: one row each (title and count); open one to see its deals. */
-.audit-groups {
-  max-width: 820px;
-  margin-bottom: var(--space-5);
-}
-
-.group-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.group-list > li + li {
-  border-top: 1px solid var(--border);
-}
-
-.audit-group summary,
-.audit-notes > summary {
-  display: flex;
-  align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.pill {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid #c9c7c5;
+  border-radius: 999px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
   cursor: pointer;
-  list-style: none;
 }
 
-.audit-group summary::-webkit-details-marker,
-.audit-notes > summary::-webkit-details-marker {
-  display: none;
+.pill[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
 }
 
-/* Our own arrow: points right when closed, down when open. */
-.audit-group summary::before,
-.audit-notes > summary::before {
-  content: "▸";
-  width: 1em;
+.pill-count {
+  font-weight: 400;
+}
+
+/* 2. Type of issue: tabs with counts. */
+.type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.type-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3) 10px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  font: inherit;
+  color: var(--label);
+  cursor: pointer;
+}
+
+.type-tab[aria-pressed="true"] {
+  border-bottom-color: var(--brand);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.type-count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #ecebea;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
   color: var(--label);
 }
 
-.audit-group[open] > summary::before,
-.audit-notes[open] > summary::before {
-  content: "▾";
+.type-tab[aria-pressed="true"] .type-count {
+  background: var(--brand);
+  color: #ffffff;
 }
 
-.audit-group summary:hover,
-.audit-notes > summary:hover {
-  background: var(--row-hover);
-}
-
-.audit-group summary:focus-visible,
-.audit-notes > summary:focus-visible {
+.pill:focus-visible,
+.type-tab:focus-visible,
+.issue-button:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: -2px;
 }
 
-.group-title {
-  font-weight: 600;
+/* 3. The issues: two lines each, read down the page; open one to see its records. */
+.data-audit-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
-.group-count {
-  margin-left: auto;
-  color: var(--label);
-  white-space: nowrap;
-}
-
-.group-items {
+.issue-list {
+  max-width: 880px;
   margin: 0;
-  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 1em + var(--space-2));
+  padding: var(--space-1) 0 var(--space-2);
+  list-style: none;
 }
 
-.item-name {
-  font-weight: 600;
+.issue {
+  border-bottom: 1px solid #ecebea;
 }
 
-.audit-notes {
-  max-width: 820px;
+.issue-button {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.audit-notes > summary {
+.issue-button:hover {
+  background: var(--row-hover);
+}
+
+.issue-button .chevron {
+  margin-top: 4px;
+}
+
+.issue-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.issue-title {
+  font-weight: 700;
+}
+
+.issue-resolution,
+.issue-count {
   color: var(--label);
-  font-weight: 600;
 }
 
-.audit-notes .audit-groups {
-  margin: var(--space-2) 0 0;
-}
-
-/* "Show all issues": the full table, every audit entry. */
-.all-issues {
-  margin-top: var(--space-5);
-}
-
-.all-issues-body {
-  margin-top: var(--space-3);
-}
-
-.all-issues-legend {
-  margin: 0 0 var(--space-2);
+.issue-count {
+  flex: none;
   font-size: 13px;
+}
+
+.issue-empty {
+  padding: var(--space-4);
   color: var(--label);
 }
 
-.all-issues .table-scroll {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+.record-table {
+  width: calc(100% - 56px);
+  margin: 0 var(--space-4) var(--space-3) 40px;
+  border-collapse: collapse;
+  font-size: 13px;
 }
 
-.audit-table td,
-.audit-table th {
+.record-table th {
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  font-weight: 600;
+  color: var(--label);
+  text-align: left;
+}
+
+.record-table td {
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  border-top: 1px solid #ecebea;
   vertical-align: top;
 }
 
-.audit-table tbody tr {
-  cursor: default;
-}
-
-.audit-table td.source {
-  font-size: 13px;
-  color: var(--label);
-}
-
-.audit-table .wrap {
-  min-width: 220px;
-  max-width: 360px;
+.record-table .row-link {
   white-space: normal;
+  max-width: none;
 }
 
-.audit-table th.issue {
-  font-weight: 400;
-}
-
-.audit-table th.issue .audit-title {
-  display: block;
+.record-where {
+  color: var(--label);
 }
 
 /* --- Weekly update: Upload dialog (SPEC 8) --------------------------------------- */

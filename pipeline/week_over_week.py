@@ -164,6 +164,7 @@ def _couldnt_compare(deal, week, couldnt_compare, audit):
     audit.append(AuditEntry(
         check="WoW",
         title="Couldn't compare week over week",
+        action="Not compared week over week",
         kind=FLAG,
         records=[{"source_file": deal["source_file"], "source_row": deal["source_row"],
                   "deal_id": deal["deal_id"], "customer": deal["customer"]}],

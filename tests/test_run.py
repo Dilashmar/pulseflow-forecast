@@ -168,6 +168,20 @@ def test_audit_titles_group_entries_in_plain_english(written):
     }
 
 
+def test_audit_actions_one_short_resolution_per_title(written):
+    # The audit tab shows one resolution line per issue type (SPEC 6.4).
+    entries = written["audit_log.json"]["entries"]
+    actions = {}
+    for e in entries:
+        assert e["action"], e["title"]
+        actions.setdefault(e["title"], set()).add(e["action"])
+    assert all(len(found) == 1 for found in actions.values()), actions
+    assert actions["Monthly billing converted to annual"] == {"Annual value = amount × 12"}
+    assert actions["Duplicate rows removed"] == {"Kept one copy"}
+    assert actions["VP rows matched by name"] == {"Matched on customer name, product and rep"}
+    assert actions["Outside the forecast quarter, left out"] == {"Left out of the Q4-2026 forecast"}
+
+
 def test_audit_titles_name_rules_not_deals(written):
     data = written["forecast.json"]
     names = {d["customer"] for d in data["deals"] if d["customer"]}

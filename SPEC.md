@@ -294,21 +294,20 @@ brand-blue top line, the value large in a white body.
   deal drawer still says "Copied from HubSpot (not new)". "Couldn't compare"
   is listed only when it isn't empty.
 
-### 6.4 Tab 3: Data Audit
+### 6.4 Tab 3: Data Hygiene & Audit Log
 
-Show only what someone acts on. Dollar amounts appear only on judgment calls,
-because those are the decisions the meeting makes; every entry's $ impact
-stays in `output/audit_log.json` for reconciliation.
+Organised in three steps, one simple control each, so 40 issues stay readable.
+Dollar amounts appear only on judgment calls; every entry's $ impact stays in
+`output/audit_log.json` for reconciliation.
 
-- Summary line: "N issues fixed automatically · M judgment calls need your
-  attention." No dollar figure.
-- Judgment calls first (VP override, cross-system duplicate, past-due deals):
-  each with the decision, the reasoning, and its $ impact or at-risk amount.
-- Fixed issues grouped by type, with plain-English names and deal counts (no
-  dollars). Expand a group to see its deals; click a deal to open its detail
-  panel.
-- Notes with no $ effect are collapsed.
-- No full issues table: source file and row stay in the audit log.
+1. **Source file** filter: All files · Salesforce (this week) · Salesforce
+   (last week) · VP scorecard · HubSpot, each with its number of records.
+2. **Type of issue** tabs, with counts that follow the file filter: Needs a
+   check (only when there is one), Judgment calls, Fixed automatically, Notes.
+3. **Issues**: one per pipeline `title`, largest first, on two lines: the
+   title, and the pipeline's short `action` (judgment calls add their $ impact
+   or at-risk amount). Opening an issue lists its records: customer (opens the
+   deal drawer), where (file and row), and what was wrong.
 
 ### 6.5 Charts (keep to one)
 
