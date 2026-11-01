@@ -228,15 +228,24 @@ decimals (e.g. $13.18M). Changes carry a sign (+$1.18M, −$100K).
 
 ### 6.1 Top banner (always visible)
 
-- Progress bar "Total forecast vs $12M target": the bar is split into Top
-  deals, Core Longtail and CareBridge Longtail, with a marker at $12M.
-  Shows the total, the variance (green if ≥ 0, red if < 0) and % of target.
-- Three tiles: Top deals, Core Longtail, CareBridge Longtail, each with its
-  expected value and number of deals.
-- Warnings line:
-  - Past-due exposure: $ of expected value on deals past their close date
-  - VP override toggle: "Formula (default)" or "VP override applied", with
-    its $ difference
+Four KPI cards, the brief's banner items and nothing else, in Salesforce
+Lightning card style: a grey header strip with an icon and the label, a
+brand-blue top line, the value large in a white body.
+
+- Header, one line: "PulseFlow Forecast · Q4-2026"; on the right the data's
+  date, **Undo** (only after an upload has been applied) and **Upload**.
+- Cards:
+  1. Total expected Q4 sales
+  2. Variance vs. $12.00M board target: signed, with an icon, colour and top
+     line that agree (✓ green above target, ⚠ amber below), so colour is never
+     the only signal
+  3. Top 8 strategic deals, with the **VP overrides** switch underneath (the
+     override only changes Top deals)
+  4. Forecasted Longtail, with its split underneath: Core Salesforce, Acquired
+     CareBridge (and Other when present)
+- Not in the banner: past-due exposure (Deal Room "Past due" chip and filter;
+  audit tab judgment call) and the VP override's $ difference (deal detail
+  panel; audit tab judgment call).
 - Recalculates instantly on any what-if change.
 
 ### 6.2 Tab 1: Deal Room (what-if)
@@ -280,10 +289,10 @@ stays in `output/audit_log.json` for reconciliation.
 - Notes with no $ effect are collapsed.
 - No full issues table: source file and row stay in the audit log.
 
-### 6.5 Charts (keep to two)
+### 6.5 Charts (keep to one)
 
-- Progress bar to the $12M target (banner).
-- Changes chart (Tab 2).
+- Changes chart (Tab 2). The banner has no chart: its variance card answers
+  "are we on track?" in words.
 
 ## 7. Definition of done
 
@@ -374,14 +383,14 @@ existing pipeline. No changes to pipeline logic or forecast math.
   real date); defaults to the current data's as-of date.
 
 ### 8.3 Flow
-1. **Upload files** (banner, right of the VP override toggle) opens the dialog.
+1. **Upload** (header, top right) opens the dialog.
    Choose files + as-of date → **Check files**
 2. Checklist: "✅ All files look good", or only the ⚠️ / ❌ rows with their
    messages. If there is no ❌, **Apply update** becomes available (the
    pipeline has already run into a temporary folder).
 3. **Apply update** (replaces current output; the dashboard reloads and the
    banner shows the new total) or **Cancel** (discards)
-4. **Undo** (next to Upload files; "Go back to last week's data" on hover and
+4. **Undo** (next to Upload; "Go back to last week's data" on hover and
    for screen readers) restores the run before the current one. One step only:
    it shows only when there is an update to undo, and disappears after use.
 

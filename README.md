@@ -24,8 +24,8 @@ pytest                                     # pipeline tests
 
 ## Running on a new week's data
 
-**From the dashboard** (dashboard and update server both running): click **Upload files** in the
-banner, drop the new files in their slots (empty slots reuse last run's files), type the as-of date
+**From the dashboard** (dashboard and update server both running): click **Upload** at the top
+right, drop the new files in their slots (empty slots reuse last run's files), type the as-of date
 (YYYY-MM-DD), then **Check files** → **Apply update**. **Undo**, next to it, goes back to last week's data.
 
 **From the command line**, when only the Salesforce export is new:

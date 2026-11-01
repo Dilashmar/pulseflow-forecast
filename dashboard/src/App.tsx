@@ -84,10 +84,6 @@ export function App() {
   return (
     <div className={shellClasses}>
       <div className="top">
-        <header className="app-header">
-          <h1>{view.title}</h1>
-          <p className="as-of">{view.asOf}</p>
-        </header>
         <Banner
           view={view}
           onVpOverrideChange={(on) => setScenario((s) => setVpOverride(s, on))}

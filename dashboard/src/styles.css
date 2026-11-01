@@ -69,8 +69,6 @@ h1, h2, h3 {
 
 /* Section headings everywhere: normal case, semibold. */
 .section-label,
-.progress-heading h2,
-.tile-label,
 .filters-header h2,
 .detail-section h3 {
   font-size: 13px;
@@ -121,25 +119,46 @@ h1, h2, h3 {
   box-shadow: var(--shadow);
 }
 
+/* One line: title and quarter on the left, the data date on the right. */
 .app-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-2) var(--space-5);
   border-bottom: 3px solid var(--brand);
 }
 
 .app-header h1 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
+}
+
+.app-quarter {
+  font-weight: 400;
+  color: var(--label);
 }
 
 .as-of {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--label);
+}
+
+/* Date, Undo (only after an upload) and Upload, right of the title. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 .sidebar {
@@ -176,139 +195,122 @@ h1, h2, h3 {
   margin: var(--space-2) 0 0;
 }
 
-/* --- Banner (compact, one band) --------------------------------------------------- */
+/* --- Banner: four KPI cards (Salesforce "Metric" style), controls row under them --- */
 
 .banner {
   display: grid;
-  grid-template-columns: minmax(340px, 1.3fr) minmax(0, 2fr);
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-3) var(--space-5) var(--space-4);
-}
-
-.progress-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
-}
-
-.progress-figures {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
 }
 
-.progress-total {
-  font-size: 32px;
+.kpi-cards {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+/* Lightning-style card: a grey header strip with icon and label, a brand-blue top
+   line (the variance card's follows its status), a white body with the value. */
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--brand);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.kpi-card.accent-on { border-top-color: var(--good); }
+.kpi-card.accent-short { border-top-color: #8c4b02; }
+
+.kpi-card > dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kpi-card > dt svg {
+  flex: none;
+  color: var(--brand);
+}
+
+.kpi-card > dd {
+  margin: 0;
+}
+
+.kpi-value {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  gap: var(--space-2);
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.2;
 }
 
-.progress-variance {
-  font-size: 16px;
-  font-weight: 700;
-}
+/* The variance: sign, icon and colour agree, so colour is never the only signal. */
+.variance-on { color: var(--good); }
+.variance-short { color: #8c4b02; }
+.kpi-value svg { flex: none; }
 
-.progress-variance.on-target { color: var(--good); }
-.progress-variance.short { color: var(--bad); }
-
-.progress-track {
-  position: relative;
-  display: flex;
-  height: 20px;
-  margin: var(--space-2) 0 26px;
-  background: var(--track);
-  border-radius: var(--radius);
-}
-
-.progress-segment { height: 100%; }
-.progress-segment:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-.segment-top { background: var(--top); }
-.segment-core { background: var(--core); }
-.segment-carebridge { background: var(--carebridge); }
-.segment-other { background: var(--other); }
-
-.progress-marker {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 0;
-  border-left: 3px solid var(--marker);
-}
-
-.progress-marker-label {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  transform: translateX(-50%);
+/* Under the value: the VP switch (Top 8) or the Longtail split, after a thin line. */
+.kpi-card > .kpi-extra {
+  margin: 0 var(--space-4) var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
   font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
-.tiles {
-  display: grid;
-  grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr);
-  gap: var(--space-3);
-  align-content: start;
-}
-
-/* Longtail: its total on one line, the Core and CareBridge tiles underneath. */
-.longtail-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.longtail-total {
-  display: flex;
-  align-items: baseline;
+.kpi-switch {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kpi-switch input {
+  width: 18px;
+  height: 18px;
   margin: 0;
-  padding: 0 var(--space-1);
-  border-bottom: 2px solid var(--border);
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 
-.longtail-value {
-  font-size: 16px;
-  font-weight: 700;
+.kpi-switch:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
-.longtail-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+/* Longtail's split: label left, value right. */
+.kpi-split {
+  margin: 0;
+}
+
+.kpi-split > div {
+  display: flex;
+  justify-content: space-between;
   gap: var(--space-3);
 }
 
-.tile {
-  border: 1px solid var(--border);
-  border-top-width: 4px;
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface-alt);
-}
+.kpi-split dt { color: var(--label); }
 
-.tile-top { border-top-color: var(--top); }
-.tile-core { border-top-color: var(--core); }
-.tile-carebridge { border-top-color: var(--carebridge); }
-
-.tile-value {
-  font-size: 24px;
+.kpi-split dd {
+  margin: 0;
   font-weight: 700;
-  line-height: 1.3;
 }
 
-.tile-count {
-  font-size: 13px;
-  color: var(--label);
-}
-
-/* More-than-8 warning, under the tiles. */
+/* More-than-8 warning, under the cards. */
 .top-warning-slot {
-  grid-column: 2;
+  grid-column: 1 / -1;
 }
 
 .top-warning-slot:empty {
@@ -342,44 +344,6 @@ h1, h2, h3 {
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
-}
-
-.warnings {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-  font-size: 14px;
-  color: var(--label);
-}
-
-.vp-toggle {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-}
-
-.vp-toggle input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--vp);
-  cursor: pointer;
-}
-
-.vp-toggle-label {
-  font-weight: 600;
-  color: var(--text);
-}
-
-.vp-toggle.on .vp-toggle-status {
-  color: var(--vp);
-  font-weight: 600;
 }
 
 /* --- Sidebar: navigation and filters ---------------------------------------------- */
@@ -1192,8 +1156,8 @@ tr.selected > :first-child {
     top: 0;
   }
 
-  .tiles {
-    grid-template-columns: minmax(0, 1fr);
+  .kpi-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .banner {
@@ -1587,13 +1551,6 @@ tr.selected > :first-child {
 }
 
 /* --- Weekly update: sidebar section and dialog (SPEC 8) --------------------------- */
-
-/* Upload files / Undo: right end of the banner's VP override row. */
-.banner-actions {
-  display: flex;
-  gap: var(--space-2);
-  margin-left: auto;
-}
 
 .button-small {
   min-height: 32px;

@@ -1,90 +1,65 @@
-// What the top banner shows (SPEC 6.1). Totals are recomputed from
-// forecast.json's deals for the current what-if scenario, so the banner
-// updates instantly. Kept apart from the component so it can be tested.
+// What the top banner shows (SPEC 6.1): four KPI cards, the brief's banner
+// items, in Salesforce "Metric" style: total expected Q4 sales, variance to the
+// board target, Top 8 strategic deals, and Forecasted Longtail split by Core
+// Salesforce and Acquired CareBridge. Totals are recomputed from forecast.json's
+// deals for the current what-if scenario, so the banner updates instantly.
+// Past due and the VP override's $ difference live in the Deal Room and the
+// audit tab, not here. Kept apart from the component so it can be tested.
 
-import { computeTotals, overTopLimit, setVpOverride, type Scenario } from "./forecast";
-import { money, percent, signedMoney } from "./format";
+import { computeTotals, overTopLimit, type Scenario } from "./forecast";
+import { money, signedMoney } from "./format";
 import type { ForecastFile } from "./types";
 
-export interface BarSegment {
-  key: "top" | "core" | "carebridge" | "other";
+export interface Figure {
   label: string;
   value: string;
-  widthPercent: number; // share of the bar's full width
-}
-
-export interface Tile {
-  label: string;
-  value: string;
-  count: string;
 }
 
 export interface BannerView {
   title: string;
+  quarter: string;
   asOf: string;
+  totalLabel: string;
   total: string;
-  target: string;
-  variance: string;
-  percentOfTarget: string;
+  varianceLabel: string;
+  variance: string; // signed: "+$1.18M" or "−$0.50M"
+  varianceStatus: string; // the icon's meaning, for screen readers
   onTarget: boolean;
-  segments: BarSegment[];
-  targetMarkerPercent: number;
-  tiles: Tile[];
-  longtail: Tile; // all Longtail deals (Core, CareBridge and any Other), shown above their tiles
-  pastDue: string;
-  vpOverrideOn: boolean;
-  vpOverride: string;
+  top: Figure;
+  longtail: Figure & { split: Figure[] };
+  vpOverrideOn: boolean; // the switch in the Top 8 card
   topWarning: string | null; // more Top deals than the usual limit (SPEC 3.6)
 }
-
-// Leave room past the larger of total and target so the marker never sits on the edge.
-const BAR_HEADROOM = 1.1;
 
 const dollars = (cents: number) => cents / 100;
 
 export function bannerView(forecast: ForecastFile, scenario: Scenario): BannerView {
   const totals = computeTotals(forecast, scenario);
-  const scale = Math.max(totals.total, totals.target) * BAR_HEADROOM;
-  const width = (cents: number) => (cents / scale) * 100;
+  const onTarget = totals.variance >= 0;
+  const quarter = forecast.meta.forecast_quarter;
 
-  const parts: { key: BarSegment["key"]; label: string; cents: number; count: number }[] = [
-    { key: "top", label: "Top deals", cents: totals.top, count: totals.topCount },
-    { key: "core", label: "Core Longtail", cents: totals.coreLongtail, count: totals.coreCount },
-    { key: "carebridge", label: "CareBridge Longtail", cents: totals.carebridgeLongtail, count: totals.carebridgeCount },
+  // A product outside the known lines is counted under "Other": listed only when present.
+  const split: Figure[] = [
+    { label: "Core Salesforce", value: money(dollars(totals.coreLongtail)) },
+    { label: "Acquired CareBridge", value: money(dollars(totals.carebridgeLongtail)) },
   ];
-  // A product outside the known lines is counted under "Other": show it in the bar only when present.
-  const barParts = totals.otherCount > 0
-    ? [...parts, { key: "other" as const, label: forecast.settings.other_product_line, cents: totals.otherLongtail, count: totals.otherCount }]
-    : parts;
-
-  const pastDueDeals = forecast.deals.filter((d) => d.bucket !== null && d.flags.includes("past_due")).length;
-
-  // What the VP override adds on top of the current edits.
-  const vpDifference = computeTotals(forecast, setVpOverride(scenario, true)).total
-    - computeTotals(forecast, setVpOverride(scenario, false)).total;
-  const vpText = scenario.vpOverride
-    ? `VP override applied · ${signedMoney(dollars(vpDifference))}`
-    : `Formula (default) · applying adds ${signedMoney(dollars(vpDifference))}`;
+  if (totals.otherCount > 0) {
+    split.push({ label: forecast.settings.other_product_line, value: money(dollars(totals.otherLongtail)) });
+  }
 
   return {
-    title: `PulseFlow ${forecast.meta.forecast_quarter} Forecast`,
-    asOf: `Data as of ${forecast.meta.as_of}`,
+    title: "PulseFlow Forecast",
+    quarter,
+    asOf: forecast.meta.as_of,
+    totalLabel: `Total expected ${quarter.split("-")[0]} sales`,
     total: money(dollars(totals.total)),
-    target: money(dollars(totals.target)),
+    varianceLabel: `Variance vs. ${money(dollars(totals.target))} board target`,
     variance: signedMoney(dollars(totals.variance)),
-    percentOfTarget: `${percent(totals.percentOfTarget)} of target`,
-    onTarget: totals.variance >= 0,
-    segments: barParts.map((p) => ({ key: p.key, label: p.label, value: money(dollars(p.cents)), widthPercent: width(p.cents) })),
-    targetMarkerPercent: width(totals.target),
-    tiles: parts.map((p) => ({ label: p.label, value: money(dollars(p.cents)), count: `${p.count} deals` })),
-    longtail: {
-      label: "Longtail",
-      value: money(dollars(totals.longtail)),
-      count: `${totals.coreCount + totals.carebridgeCount + totals.otherCount} deals`,
-    },
-    pastDue: `Past-due exposure: ${money(dollars(totals.pastDueExposure))} on ${pastDueDeals} deals`,
+    varianceStatus: onTarget ? "Above target" : "Below target",
+    onTarget,
+    top: { label: "Top 8 strategic deals", value: money(dollars(totals.top)) },
+    longtail: { label: "Forecasted Longtail", value: money(dollars(totals.longtail)), split },
     vpOverrideOn: scenario.vpOverride,
-    vpOverride: vpText,
     topWarning: overTopLimit(totals, forecast.settings)
       ? `${totals.topCount} Top deals: more than the usual ${forecast.settings.top_deal_limit}.`
         + " Allowed for what-if; review before presenting."

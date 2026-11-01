@@ -3,50 +3,32 @@ import { describe, expect, it } from "vitest";
 import { bannerView } from "./bannerView";
 import { forecast } from "./data";
 import { BASELINE, promote, setScore, setVpOverride } from "./forecast";
+import type { ForecastFile } from "./types";
 
 describe("banner, baseline (numbers recomputed from forecast.json's deals)", () => {
   const view = bannerView(forecast, BASELINE);
 
-  it("header", () => {
-    expect(view.title).toBe("PulseFlow Q4-2026 Forecast");
-    expect(view.asOf).toBe("Data as of 2026-10-15");
+  it("header: one line, title and the data's date", () => {
+    expect([view.title, view.quarter, view.asOf]).toEqual(["PulseFlow Forecast", "Q4-2026", "2026-10-15"]);
   });
 
-  it("progress bar", () => {
-    expect(view.total).toBe("$13.18M");
-    expect(view.target).toBe("$12.00M");
-    expect(view.variance).toBe("+$1.18M");
-    expect(view.percentOfTarget).toBe("109.9% of target");
-    expect(view.onTarget).toBe(true);
-  });
-
-  it("bar segments add up to the total and the marker sits at the target", () => {
-    expect(view.segments.map((s) => [s.label, s.value])).toEqual([
-      ["Top deals", "$7.84M"],
-      ["Core Longtail", "$4.35M"],
-      ["CareBridge Longtail", "$992K"],
+  it("four cards, the brief's four items", () => {
+    expect([view.totalLabel, view.total]).toEqual(["Total expected Q4 sales", "$13.18M"]);
+    expect([view.varianceLabel, view.variance, view.onTarget, view.varianceStatus]).toEqual([
+      "Variance vs. $12.00M board target", "+$1.18M", true, "Above target",
     ]);
-    const filled = view.segments.reduce((sum, s) => sum + s.widthPercent, 0);
-    expect(filled / view.targetMarkerPercent).toBeCloseTo(13_182_400 / 12_000_000, 10);
+    expect(view.top).toEqual({ label: "Top 8 strategic deals", value: "$7.84M" });
+    expect(view.longtail).toEqual({
+      label: "Forecasted Longtail",
+      value: "$5.34M",
+      split: [{ label: "Core Salesforce", value: "$4.35M" }, { label: "Acquired CareBridge", value: "$992K" }],
+    });
   });
 
-  it("tiles", () => {
-    expect(view.tiles).toEqual([
-      { label: "Top deals", value: "$7.84M", count: "8 deals" },
-      { label: "Core Longtail", value: "$4.35M", count: "20 deals" },
-      { label: "CareBridge Longtail", value: "$992K", count: "10 deals" },
-    ]);
-  });
-
-  it("combined Longtail total above the Core and CareBridge tiles", () => {
-    // $4,350,000 + $992,400 = $5,342,400
-    expect(view.longtail).toEqual({ label: "Longtail", value: "$5.34M", count: "30 deals" });
-  });
-
-  it("warnings line", () => {
-    expect(view.pastDue).toBe("Past-due exposure: $812K on 4 deals");
-    expect(view.vpOverrideOn).toBe(false);
-    expect(view.vpOverride).toBe("Formula (default) · applying adds +$550K");
+  it("only the brief's items: no past-due line or VP status text", () => {
+    expect(view).not.toHaveProperty("pastDue");
+    expect(view).not.toHaveProperty("vpOverride");
+    expect(view.vpOverrideOn).toBe(false); // the switch in the Top 8 card
   });
 });
 
@@ -55,18 +37,17 @@ describe("banner follows what-if changes", () => {
 
   it("Starlight Contractual 2 -> 3", () => {
     const view = bannerView(forecast, setScore(BASELINE, starlight, "contractual", 3));
-    expect(view.total).toBe("$13.42M");
-    expect(view.tiles[0].value).toBe("$8.08M");
+    expect([view.total, view.top.value, view.variance]).toEqual(["$13.42M", "$8.08M", "+$1.42M"]);
   });
 
   it("VP override on", () => {
     const view = bannerView(forecast, setVpOverride(BASELINE, true));
-    expect(view.total).toBe("$13.73M");
+    expect([view.total, view.variance]).toEqual(["$13.73M", "+$1.73M"]);
+    expect(view.top.value).toBe("$8.39M");
     expect(view.vpOverrideOn).toBe(true);
-    expect(view.vpOverride).toBe("VP override applied · +$550K");
   });
 
-  it("below target is shown as short", () => {
+  it("below target: a minus sign, and said in words for screen readers", () => {
     // Drop every Top deal to 1/1/1 (10%): Top = $1.57M, total = $6,912,400.
     let scenario = BASELINE;
     for (const d of forecast.deals.filter((d) => d.bucket === "Top")) {
@@ -75,26 +56,35 @@ describe("banner follows what-if changes", () => {
       scenario = setScore(scenario, d, "contractual", 1);
     }
     const view = bannerView(forecast, scenario);
-    expect(view.total).toBe("$6.91M");
-    expect(view.variance).toBe("−$5.09M");
-    expect(view.percentOfTarget).toBe("57.6% of target");
-    expect(view.onTarget).toBe(false);
+    expect([view.total, view.variance, view.onTarget, view.varianceStatus]).toEqual([
+      "$6.91M", "−$5.09M", false, "Below target",
+    ]);
+  });
+
+  it("a product outside the known lines adds an Other line to the Longtail card", () => {
+    const deals = forecast.deals.map((d) => (d.deal_id === "006PF000001L020YAC" ? { ...d, product: "Telehealth" } : d));
+    const view = bannerView({ ...forecast, deals } as ForecastFile, BASELINE);
+    // Borealis North Surgery Clinic: $300K x 80% = $240K moves from Core to Other.
+    expect(view.longtail.split).toEqual([
+      { label: "Core Salesforce", value: "$4.11M" },
+      { label: "Acquired CareBridge", value: "$992K" },
+      { label: "Other", value: "$240K" },
+    ]);
+    expect(view.longtail.value).toBe("$5.34M");
   });
 });
 
-describe("more-than-8 warning, under the tiles", () => {
+describe("more-than-8 warning", () => {
   const kestrel = forecast.deals.find((d) => d.deal_id === "006PF000001L013YAC")!;
 
   it("none at baseline", () => {
     expect(bannerView(forecast, BASELINE).topWarning).toBeNull();
   });
 
-  it("shown with 9 Top deals; tiles follow", () => {
+  it("shown with 9 Top deals; the cards follow", () => {
     const view = bannerView(forecast, promote(BASELINE, kestrel, forecast.settings));
     expect(view.topWarning).toBe("9 Top deals: more than the usual 8. Allowed for what-if; review before presenting.");
-    expect(view.tiles[0]).toEqual({ label: "Top deals", value: "$8.09M", count: "9 deals" });
-    expect(view.tiles[1]).toEqual({ label: "Core Longtail", value: "$4.05M", count: "19 deals" });
-    expect(view.longtail).toEqual({ label: "Longtail", value: "$5.04M", count: "29 deals" });
-    expect(view.total).toBe("$13.13M");
+    expect([view.total, view.top.value, view.longtail.value]).toEqual(["$13.13M", "$8.09M", "$5.04M"]);
+    expect(view.longtail.split[0]).toEqual({ label: "Core Salesforce", value: "$4.05M" });
   });
 });
