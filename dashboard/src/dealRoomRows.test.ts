@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { audit, forecast, weekOverWeek } from "./data";
+import { forecast, weekOverWeek } from "./data";
 import { dealDetail } from "./dealDetail";
 import { dealRoomRows } from "./dealRoomRows";
 import { BASELINE, demote, promote, setScore, setVpOverride } from "./forecast";
@@ -57,13 +57,13 @@ describe("Deal Room rows", () => {
     expect(edited.map((r) => r.dealId)).toEqual(rows.map((r) => r.dealId));
   });
 
-  it("table and detail panel show the same scores after an edit (kept in sync)", () => {
+  it("table and drawer show the same numbers after an edit (kept in sync)", () => {
     const starlight = forecast.deals.find((d) => d.deal_id === "006PF000001T007YAC")!;
     const scenario = setScore(BASELINE, starlight, "contractual", 3);
-    const tableScores = row(dealRoomRows(forecast, scenario), "006PF000001T007YAC").scores;
-    const panelScores = dealDetail(starlight, scenario, forecast, audit, weekOverWeek).scores;
-    expect(tableScores).toEqual({ leadership: 2, commercial: 2, contractual: 3 });
-    expect(panelScores).toEqual(tableScores);
+    const tableRow = row(dealRoomRows(forecast, scenario), "006PF000001T007YAC");
+    const drawer = dealDetail(starlight, scenario, forecast, weekOverWeek);
+    expect(tableRow.scores).toEqual({ leadership: 2, commercial: 2, contractual: 3 });
+    expect([drawer.figures.expectedValue, drawer.figures.winPercent]).toEqual([tableRow.expectedValue, tableRow.probability]);
   });
 
   it("only Top deals have scores to edit", () => {

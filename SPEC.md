@@ -274,7 +274,13 @@ brand-blue top line, the value large in a white body.
   view while scrolling. No sideways scrolling at laptop width.
 - Filters narrow the sections and their totals; the banner always shows the
   full company forecast.
-- GPA, annual ACV, VP notes and the calculation are in the deal drawer.
+- Clicking a customer opens the deal drawer: name; deal ID and its source file
+  ("006PF000001T005YAC · Salesforce (this week)"); rep; expected value, win %,
+  annual value and close date. Then only the sections that have something to
+  say: Needs attention (past due, the VP disagreeing, a merged duplicate,
+  needs review), VP notes, and this week's changes. Deals not in the forecast
+  show a status line ("Not in Q4 forecast: slipped to Q1-2027") and $0.
+  Editing stays in the table; data fixes are on the audit tab.
 
 ### 6.3 Tab 2: What Changed
 

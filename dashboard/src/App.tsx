@@ -105,12 +105,7 @@ export function App() {
       </main>
 
       {selected && (
-        <DetailPanel
-          detail={dealDetail(selected, scenario, forecast, audit, weekOverWeek)}
-          onScoreChange={changeScore}
-          onClose={closePanel}
-          onMove={moveDeal}
-        />
+        <DetailPanel detail={dealDetail(selected, scenario, forecast, weekOverWeek)} onClose={closePanel} />
       )}
     </div>
   );

@@ -66,9 +66,7 @@ h1, h2, h3 {
 }
 
 /* Section headings everywhere: normal case, semibold. */
-.section-label,
-.filters-header h2,
-.detail-section h3 {
+.section-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--label);
@@ -669,8 +667,7 @@ h1, h2, h3 {
   border-color: var(--brand);
 }
 
-.score-pickers select:focus-visible,
-.score-field select:focus-visible {
+.score-pickers select:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
@@ -770,13 +767,8 @@ tr.selected > :first-child {
 .chip-muted { background: #ecebea; color: var(--label); }
 .chip-edited { background: var(--edited-accent); color: #ffffff; }
 
-.chip-kind-fix { background: #cdefc4; color: #194e31; }
-.chip-kind-flag { background: #fef1cd; color: #8c4b02; }
-.chip-kind-decision { background: #ece1f9; color: #5a1ba9; }
-.chip-kind-needs-review { background: #feded8; color: #8e030f; }
-.chip-kind-note { background: #ecebea; color: var(--label); }
 
-/* --- Detail panel ----------------------------------------------------------------- */
+/* --- Deal drawer: name, ID and source, rep, four numbers, then only what applies -- */
 
 /* A drawer over the page: it never squeezes the table. Esc or × closes it. */
 .detail-panel {
@@ -792,7 +784,7 @@ tr.selected > :first-child {
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
 }
 
-.detail-header {
+.drawer-head {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -801,26 +793,23 @@ tr.selected > :first-child {
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--surface-alt);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.detail-header h2 {
-  font-size: 18px;
+.drawer-head h2 {
+  font-size: 17px;
   font-weight: 700;
+  line-height: 1.3;
 }
 
-.detail-header-actions {
-  display: flex;
-  flex: none;
-  gap: var(--space-1);
+.drawer-id {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.detail-eyebrow {
-  margin: 0 0 var(--space-1);
-}
-
-.detail-id {
+.drawer-rep {
   margin: var(--space-1) 0 0;
   font-size: 13px;
   color: var(--label);
@@ -846,161 +835,84 @@ tr.selected > :first-child {
   outline-offset: -2px;
 }
 
-.detail-facts {
+.drawer-figures {
+  margin: 0;
+  padding: var(--space-4);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3) var(--space-4);
-  margin: 0;
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border);
 }
 
-.detail-facts dt {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--label);
-}
-
-.detail-facts dd {
-  margin: 0;
-  font-size: 14px;
-}
-
-.detail-section {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-
-.detail-section h3 {
-  margin-bottom: var(--space-3);
-  font-size: 14px;
-}
-
-.score-editor {
-  display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
-}
-
-.score-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--label);
-}
-
-.score-field select {
-  min-height: 36px;
-  min-width: 72px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--text);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.score-field select.changed {
-  font-weight: 700;
-  border-color: var(--edited-accent);
-  box-shadow: 0 0 0 1px var(--edited-accent);
-}
-
-.calc {
-  margin: 0;
-  padding: var(--space-3) var(--space-4) var(--space-3) 36px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-variant-numeric: tabular-nums;
-}
-
-.calc li + li {
-  margin-top: var(--space-2);
-}
-
-.calc-result {
-  font-weight: 700;
-}
-
-.vp-line {
-  margin: var(--space-3) 0 0;
-  color: var(--vp);
-  font-weight: 600;
-}
-
-.move-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.move-note {
-  margin: 0;
-  font-size: 14px;
-  color: var(--label);
-}
-
-.vp-notes {
-  max-width: 65ch;
-  margin: 0;
-  font-style: italic;
-}
-
-.flag-list,
-.audit-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.flag-list li + li,
-.audit-list li + li {
-  margin-top: var(--space-3);
-}
-
-.flag-list p {
-  max-width: 65ch;
-  margin: var(--space-1) 0 0;
-}
-
-.audit-item {
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.audit-item p {
-  max-width: 65ch;
-  margin: var(--space-2) 0 0;
-}
-
-.audit-item-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-}
-
-.audit-title {
-  font-weight: 700;
-}
-
-.audit-check {
+.drawer-figures dt {
   font-size: 12px;
   color: var(--label);
 }
 
-.audit-impact {
-  margin-left: auto;
+.drawer-figures dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.drawer-figures .drawer-big {
+  font-size: 20px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+}
+
+.drawer-section {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.drawer-section h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.attention-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: #5c3a00;
+}
+
+.attention-list li + li {
+  margin-top: var(--space-1);
+}
+
+.attention-list svg {
+  flex: none;
+  margin-top: 3px;
+  color: #8c4b02;
+}
+
+.vp-notes {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+
+.week-changes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-changes li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.week-changes li + li {
+  margin-top: var(--space-1);
 }
 
 /* --- Smaller screens -------------------------------------------------------------- */
@@ -1180,37 +1092,13 @@ tr.selected > :first-child {
 .arrow { color: var(--muted); }
 .after { font-weight: 600; }
 
-/* --- Detail panel: deals not in the forecast, and this week's changes -------------- */
-
-.bucket-excluded { background: #ecebea; color: var(--label); }
-
+/* The drawer's status line for a deal not in the forecast. */
 .status-line {
   margin: var(--space-3) var(--space-4) 0;
   padding: var(--space-2) var(--space-3);
   border-left: 4px solid var(--muted);
   background: var(--surface-alt);
   font-weight: 600;
-}
-
-.week-changes {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.week-changes li + li {
-  margin-top: var(--space-3);
-}
-
-.week-change-head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.week-change-category {
-  font-weight: 600;
-  color: var(--label);
 }
 
 /* --- Data Hygiene & Audit Log: file filter, type tabs, then the issues --------- */

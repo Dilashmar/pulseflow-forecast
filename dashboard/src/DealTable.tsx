@@ -65,7 +65,7 @@ export function DealTable(props: DealTableProps) {
       <div className="table-scroll">
         <SectionTable section={top} open={topOpen} onToggle={() => setTopOpen(!topOpen)}
           detailColumn="Scores (L / C / K)" render={(row) => (
-            <ScoreSelects deal={row.deal} scores={row.scores!} onChange={onScoreChange} variant="compact" />
+            <ScoreSelects deal={row.deal} scores={row.scores!} onChange={onScoreChange} />
           )}
           action={(row) => (
             <button type="button" className="row-action" aria-label={`Move ${row.customer} to the Longtail`}

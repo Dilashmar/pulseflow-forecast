@@ -1,6 +1,5 @@
-// The Leadership / Commercial / Contractual score dropdowns, shared by the Deal
-// Room table (compact) and the detail panel (labeled). Both write the same
-// what-if edit, so they always show the same values.
+// The Leadership / Commercial / Contractual score dropdowns in the Deal Room's
+// Top 8 rows. Each writes a what-if edit; the banner and the drawer follow.
 
 import type { KeyboardEvent, MouseEvent } from "react";
 
@@ -18,44 +17,33 @@ interface ScoreSelectsProps {
   deal: Deal;
   scores: Scores;
   onChange: (deal: Deal, pillar: Pillar, value: number) => void;
-  variant: "compact" | "labeled";
 }
 
-// In the table, using a dropdown must not also open the detail panel.
+// Using a dropdown must not also open the deal drawer.
 const stop = (e: MouseEvent | KeyboardEvent) => e.stopPropagation();
 
-export function ScoreSelects({ deal, scores, onChange, variant }: ScoreSelectsProps) {
+export function ScoreSelects({ deal, scores, onChange }: ScoreSelectsProps) {
   const original = pipelineScores(deal);
   const name = deal.customer ?? deal.deal_id;
 
   return (
-    <div
-      className={variant === "compact" ? "score-pickers" : "score-editor"}
-      role="group"
-      aria-label={`Scores for ${name}`}
-    >
+    <div className="score-pickers" role="group" aria-label={`Scores for ${name}`}>
       {PILLARS.map((p) => {
         const changed = original !== null && scores[p.key] !== original[p.key];
-        const select = (
-          <select
-            aria-label={`${p.label} score for ${name}${changed ? " (edited)" : ""}`}
-            title={variant === "compact" ? `${p.label} score` : undefined}
-            value={scores[p.key]}
-            className={changed ? "changed" : undefined}
-            onClick={stop}
-            onKeyDown={stop}
-            onChange={(e) => onChange(deal, p.key, Number(e.target.value))}
-          >
-            {SCORE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        );
-        return variant === "compact" ? (
-          <span key={p.key}>{select}</span>
-        ) : (
-          <label key={p.key} className="score-field">
-            <span aria-hidden="true">{p.label}</span>
-            {select}
-          </label>
+        return (
+          <span key={p.key}>
+            <select
+              aria-label={`${p.label} score for ${name}${changed ? " (edited)" : ""}`}
+              title={`${p.label} score`}
+              value={scores[p.key]}
+              className={changed ? "changed" : undefined}
+              onClick={stop}
+              onKeyDown={stop}
+              onChange={(e) => onChange(deal, p.key, Number(e.target.value))}
+            >
+              {SCORE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </span>
         );
       })}
     </div>

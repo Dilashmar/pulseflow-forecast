@@ -62,9 +62,15 @@ const FILE_LABELS: Record<string, string> = {
 const cents = (dollars: number) => Math.round(dollars * 100);
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** "Salesforce (this week)", "HubSpot"…: how the dashboard names a source file (its own name if unknown). */
+export function fileLabel(forecast: ForecastFile, name: string): string {
+  const inputFiles = forecast.meta.input_files;
+  return FILE_LABELS[Object.keys(inputFiles).find((k) => inputFiles[k] === name) ?? ""] ?? name;
+}
+
 export function auditView(audit: AuditFile, forecast: ForecastFile, file: string = ALL_FILES): AuditView {
   const inputFiles = forecast.meta.input_files;
-  const label = (name: string) => FILE_LABELS[Object.keys(inputFiles).find((k) => inputFiles[k] === name) ?? ""] ?? name;
+  const label = (name: string) => fileLabel(forecast, name);
   const touches = (e: AuditEntry, name: string) => e.records.some((r) => r.source_file === name);
 
   const files: FileFilter[] = [
