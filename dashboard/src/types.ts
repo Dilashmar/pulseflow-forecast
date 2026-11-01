@@ -71,6 +71,38 @@ export interface Settings {
   top_deal_limit: number;
 }
 
+// Shape of output/audit_log.json.
+
+export interface AuditRecord {
+  source_file: string;
+  source_row: number | null; // null = the whole file
+  deal_id: string | null;
+  customer: string | null;
+}
+
+export interface AuditEntry {
+  check: string;
+  kind: "Fix" | "Flag" | "Decision" | "Needs review" | "Note";
+  records: AuditRecord[];
+  what_was_wrong: string;
+  resolution: string;
+  impact: number;
+  at_risk: number | null;
+  reasoning: string | null;
+}
+
+export interface AuditFile {
+  summary: {
+    entries: number;
+    by_check: Record<string, number>;
+    by_kind: Record<string, number>;
+    total_impact_abs: number;
+    total_impact_net: number;
+    total_at_risk: number;
+  };
+  entries: AuditEntry[];
+}
+
 export interface ForecastFile {
   meta: {
     as_of: string;

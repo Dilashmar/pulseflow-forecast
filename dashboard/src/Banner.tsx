@@ -1,6 +1,11 @@
 import type { BannerView } from "./bannerView";
 
-export function Banner({ view }: { view: BannerView }) {
+interface BannerProps {
+  view: BannerView;
+  onVpOverrideChange: (on: boolean) => void;
+}
+
+export function Banner({ view, onVpOverrideChange }: BannerProps) {
   const status = view.onTarget ? "on-target" : "short";
   return (
     <section className="banner" aria-label="Forecast summary">
@@ -43,11 +48,20 @@ export function Banner({ view }: { view: BannerView }) {
         ))}
       </div>
 
-      <p className="warnings">
+      <div className="warnings">
         <span>{view.pastDue}</span>
         <span className="warnings-separator" aria-hidden="true">·</span>
-        <span>{view.vpOverride}</span>
-      </p>
+        <label className={`vp-toggle${view.vpOverrideOn ? " on" : ""}`}>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={view.vpOverrideOn}
+            onChange={(e) => onVpOverrideChange(e.target.checked)}
+          />
+          <span className="vp-toggle-label">Apply VP overrides</span>
+          <span className="vp-toggle-status">{view.vpOverride}</span>
+        </label>
+      </div>
     </section>
   );
 }

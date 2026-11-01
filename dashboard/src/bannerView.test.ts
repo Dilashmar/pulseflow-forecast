@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { bannerView } from "./bannerView";
 import { forecast } from "./data";
-import type { ForecastFile } from "./types";
+import { BASELINE, setScore, setVpOverride } from "./forecast";
 
-describe("banner reads every number from forecast.json", () => {
-  const view = bannerView(forecast);
+describe("banner, baseline (numbers recomputed from forecast.json's deals)", () => {
+  const view = bannerView(forecast, BASELINE);
 
   it("header", () => {
     expect(view.title).toBe("PulseFlow Q4-2026 Forecast");
@@ -40,20 +40,39 @@ describe("banner reads every number from forecast.json", () => {
 
   it("warnings line", () => {
     expect(view.pastDue).toBe("Past-due exposure: $812K on 4 deals");
-    expect(view.vpOverride).toBe("VP override: Formula (default) · applying it adds +$550K");
+    expect(view.vpOverrideOn).toBe(false);
+    expect(view.vpOverride).toBe("Formula (default) · applying adds +$550K");
+  });
+});
+
+describe("banner follows what-if changes", () => {
+  const starlight = forecast.deals.find((d) => d.deal_id === "006PF000001T007YAC")!;
+
+  it("Starlight Contractual 2 -> 3", () => {
+    const view = bannerView(forecast, setScore(BASELINE, starlight, "contractual", 3));
+    expect(view.total).toBe("$13.42M");
+    expect(view.tiles[0].value).toBe("$8.08M");
   });
 
-  it("variance below target is shown as short", () => {
-    const short: ForecastFile = {
-      ...forecast,
-      totals: {
-        ...forecast.totals,
-        formula: { ...forecast.totals.formula, total: 11_500_000, variance: -500_000, percent_of_target: 95.8 },
-      },
-    };
-    const shortView = bannerView(short);
-    expect(shortView.variance).toBe("−$500K");
-    expect(shortView.percentOfTarget).toBe("95.8% of target");
-    expect(shortView.onTarget).toBe(false);
+  it("VP override on", () => {
+    const view = bannerView(forecast, setVpOverride(BASELINE, true));
+    expect(view.total).toBe("$13.73M");
+    expect(view.vpOverrideOn).toBe(true);
+    expect(view.vpOverride).toBe("VP override applied · +$550K");
+  });
+
+  it("below target is shown as short", () => {
+    // Drop every Top deal to 1/1/1 (10%): Top = $1.57M, total = $6,912,400.
+    let scenario = BASELINE;
+    for (const d of forecast.deals.filter((d) => d.bucket === "Top")) {
+      scenario = setScore(scenario, d, "leadership", 1);
+      scenario = setScore(scenario, d, "commercial", 1);
+      scenario = setScore(scenario, d, "contractual", 1);
+    }
+    const view = bannerView(forecast, scenario);
+    expect(view.total).toBe("$6.91M");
+    expect(view.variance).toBe("−$5.09M");
+    expect(view.percentOfTarget).toBe("57.6% of target");
+    expect(view.onTarget).toBe(false);
   });
 });
