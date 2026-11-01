@@ -18,6 +18,10 @@ export default defineConfig({
   },
   server: {
     fs: { allow: [".", outputDir] },
+    // The weekly update server (server/app.py, SPEC 8): /api/status -> localhost:8000/status.
+    proxy: {
+      "/api": { target: "http://localhost:8000", rewrite: (path) => path.replace(/^\/api/, "") },
+    },
   },
   test: {
     environment: "node",

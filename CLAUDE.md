@@ -13,6 +13,7 @@ Full rules, data issues, and expected results are in SPEC.md. Read it first.
 - Run pipeline: `python pipeline/run.py --data data/raw`
 - Run tests: `pytest`
 - Start dashboard: `cd dashboard && npm run dev`
+- Start update server (for the dashboard's Update data): `.venv/bin/uvicorn server.app:app --port 8000`
 
 ## Structure
 - `data/raw/`: original input files. NEVER modify.
@@ -42,3 +43,4 @@ Full rules, data issues, and expected results are in SPEC.md. Read it first.
 - After each change, run the tests and the pipeline, and show me the totals.
 - Never say "it works" without showing the output.
 - Don't commit; I review and commit each step myself.
+

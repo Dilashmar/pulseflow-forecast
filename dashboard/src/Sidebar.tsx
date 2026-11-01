@@ -12,6 +12,14 @@ export const TABS: { key: Tab; label: string; short: string }[] = [
 
 const BUCKETS: Bucket[] = ["Top", "Longtail"];
 
+/** The Weekly update section (SPEC 8): data date, Update data, Go back. */
+export interface SidebarUpdate {
+  asOf: string;
+  undo: { button: boolean; note: string | null };
+  onOpen: () => void;
+  onUndo: () => void;
+}
+
 interface SidebarProps {
   tab: Tab;
   onTabChange: (tab: Tab) => void;
@@ -20,10 +28,11 @@ interface SidebarProps {
   options: { products: string[]; reps: string[] };
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  update: SidebarUpdate;
 }
 
 export function Sidebar(props: SidebarProps) {
-  const { tab, onTabChange, filters, onFiltersChange, options, collapsed, onCollapsedChange } = props;
+  const { tab, onTabChange, filters, onFiltersChange, options, collapsed, onCollapsedChange, update } = props;
   const toggle = <T,>(list: T[], value: T) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const filterCount = activeFilterCount(filters);
   const hasFilters = filterCount > 0;
@@ -66,6 +75,10 @@ export function Sidebar(props: SidebarProps) {
             {hasFilters && <span className="badge">{filterCount}</span>}
           </button>
         )}
+        <button type="button" className="rail-button rail-update" aria-label="Update data" title="Update data"
+          onClick={update.onOpen}>
+          <span aria-hidden="true">⇪</span>
+        </button>
       </aside>
     );
   }
@@ -161,6 +174,16 @@ export function Sidebar(props: SidebarProps) {
           </fieldset>
         </section>
       )}
+
+      <section className="weekly-update" aria-labelledby="weekly-update-title">
+        <h2 id="weekly-update-title">Weekly update</h2>
+        <p className="weekly-update-date">Data as of {update.asOf}</p>
+        <button type="button" className="button" onClick={update.onOpen}>Update data</button>
+        {update.undo.button && (
+          <button type="button" className="link-button" onClick={update.onUndo}>Go back to last week's data</button>
+        )}
+        {update.undo.note && <p className="muted">{update.undo.note}</p>}
+      </section>
     </aside>
   );
 }

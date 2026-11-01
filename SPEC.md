@@ -352,3 +352,74 @@ stays in `output/audit_log.json` for reconciliation.
 - ACV changes: Caledonia +$150K, Polaris +$100K, Solaris +$400K,
   Windward −$100K
 - Missing from current: none
+
+## 8. Weekly update (upload)
+
+### 8.1 Scope
+Local only (runs on the presenter's laptop). A small Python server wraps the
+existing pipeline. No changes to pipeline logic or forecast math.
+
+### 8.2 Slots and file selection
+| Slot | If uploaded | If empty |
+|---|---|---|
+| This week's Salesforce | Use it | Reuse last run's current |
+| Last week's Salesforce (optional) | Use it | If a new "this week" file was uploaded → last run's current; otherwise → last run's prior |
+| HubSpot | Use it | Reuse last run's |
+| VP scorecard | Use it | Reuse last run's |
+
+- First run (no previous run): all four required; list what's missing.
+- No new files: "No new files. Nothing to update."
+- Each slot shows its source: New file / Reused (as of <date>) / Automatic.
+- As-of date: required field, defaults to the current data's as-of date (editable).
+
+### 8.3 Flow
+1. Choose files + as-of date → **Check files**
+2. Checklist: "✅ All files look good", or only the ⚠️ / ❌ rows with their
+   messages. If there is no ❌, **Apply update** becomes available (the
+   pipeline has already run into a temporary folder).
+3. **Apply update** (replaces current output; the dashboard reloads and the
+   banner shows the new total) or **Cancel** (discards)
+4. **Go back to last week's data** restores the run before the current one.
+   One step only: after going back, the button shows "Already gone back" until
+   the next update is applied.
+
+One pending update at a time: a new Check replaces any preview not yet applied.
+
+### 8.4 Checks
+Stop (❌, nothing changes):
+- File isn't .csv or .xlsx
+- Required columns missing (name the file and column)
+- File is in the wrong slot (detected by its columns): "This looks like a HubSpot export"
+- This week's and last week's Salesforce files are identical: "This week and last
+  week are the same file, so What Changed would be empty."
+- Every uploaded file matches the current data: "Nothing new to update."
+
+Treated as unchanged (not new):
+- This week's Salesforce identical to the current data: counts as an empty slot
+  (last week's file stays as it was; other new files still apply), with ⚠️
+  "This Salesforce file is already loaded, so it's treated as unchanged."
+- HubSpot or VP identical to the current data: no message.
+
+Warn (⚠️, user can still continue):
+- More than 20% of last week's deals are missing from this week's Salesforce (possible partial export)
+- As-of date is earlier than the last run's
+
+### 8.5 Storage
+- Each applied run is saved to `runs/<as-of>_<time>/` with its input files and output.
+- `output/` always holds the currently applied run.
+- Undo restores the previous run's folder into `output/` (one step only, 8.3).
+- The first applied update also saves the output it replaces, so it can be undone.
+- `runs/` is git-ignored.
+
+### 8.6 Preview summary
+Not shown in the dashboard: after Apply, the banner shows the new total, and
+**Go back to last week's data** undoes the update if it looks wrong. The
+server still returns old total → new total, change in $, counts of new /
+slipped / lost deals, and rows needing review, for later use.
+
+### 8.7 Done
+Tests: all four files; this week only; this week + last week; VP only (prior
+unchanged); first run missing files; wrong file type; missing column; wrong
+slot; same file twice (stop); re-uploading the current Salesforce file (alone:
+nothing new; with a new VP file: VP change applies, prior unchanged);
+partial-file warning; Cancel leaves output unchanged; Undo restores the previous run.

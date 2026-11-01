@@ -23,7 +23,10 @@ export function DetailPanel(props: DetailPanelProps) {
 
   // Esc closes the panel; focus moves to it when a deal opens or the panel expands.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Esc closes the panel, unless a dialog (e.g. Update data) is open: Esc closes that instead.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open]")) onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);

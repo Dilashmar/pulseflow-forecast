@@ -1585,3 +1585,210 @@ tr.selected > :first-child {
 .audit-table th.issue .audit-title {
   display: block;
 }
+
+/* --- Weekly update: sidebar section and dialog (SPEC 8) --------------------------- */
+
+.weekly-update {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.weekly-update h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.weekly-update-date {
+  margin: 0;
+}
+
+.rail-update {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding-top: var(--space-1);
+}
+
+.button-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #014486;
+}
+
+.button-primary:disabled {
+  background: #c9c7c5;
+  border-color: #c9c7c5;
+  color: #ffffff;
+}
+
+.update-dialog {
+  width: min(720px, calc(100vw - 32px));
+  padding: var(--space-5);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+
+.update-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.update-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.update-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.update-intro {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--label);
+}
+
+.drop-zones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 2px dashed #c9c7c5;
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+}
+
+.drop-zone.over {
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: var(--brand);
+}
+
+/* The whole label is the click target; the hidden file input inside keeps keyboard access. */
+.drop-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.drop-zone:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.drop-title {
+  font-weight: 700;
+}
+
+.drop-hint {
+  color: var(--brand);
+  overflow-wrap: anywhere;
+}
+
+.drop-source {
+  margin: 0;
+  font-size: 13px;
+  color: var(--label);
+}
+
+.drop-zone .link-button {
+  align-self: flex-start;
+  font-size: 13px;
+}
+
+.as-of-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font-weight: 600;
+}
+
+.as-of-field input {
+  min-height: 36px;
+  font: inherit;
+  font-weight: 400;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.update-result {
+  min-height: var(--space-5);
+  margin-top: var(--space-4);
+}
+
+.update-result p {
+  margin: 0;
+}
+
+.update-ok {
+  font-weight: 600;
+  color: var(--good);
+}
+
+.update-error {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.update-problems {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.update-problems li {
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid;
+  border-radius: 2px;
+}
+
+.update-problems li + li {
+  margin-top: var(--space-2);
+}
+
+.problem-warn { border-color: var(--edited-accent); background: #fef6e7; }
+.problem-stop { border-color: var(--bad); background: #feded8; }
+
+.update-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.update-actions-right {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.apply-note {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--label);
+  text-align: right;
+}

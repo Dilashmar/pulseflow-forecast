@@ -19,11 +19,16 @@ python pipeline/run.py --data data/raw     # writes output/*.json and prints the
 pytest                                     # pipeline tests
 (cd dashboard && npm test)                 # dashboard tests (Vitest)
 (cd dashboard && npm run dev)              # dashboard at http://localhost:5173
+.venv/bin/uvicorn server.app:app --port 8000   # update server, for Update data (second terminal)
 ```
 
 ## Running on a new week's data
 
-**One command**, when only the Salesforce export is new:
+**From the dashboard** (dashboard and update server both running): click **Update data** in the
+sidebar, drop the new files in their slots (empty slots reuse last run's files), check the as-of date,
+then **Check files** → **Apply update**. **Go back to last week's data** undoes the last update.
+
+**From the command line**, when only the Salesforce export is new:
 
 ```bash
 python pipeline/run.py --current week_2_update.csv --as-of 2026-10-22
@@ -103,6 +108,7 @@ D11, D12 and D14 found nothing this week.
 ## Next steps
 
 - **Pull data directly** from the Salesforce and HubSpot APIs on a Monday schedule, instead of file drops.
-- **Upload new files from the dashboard,** backed by a small server, if file drops stay.
+- **Smarter upload:** drop all files in one place and have them sorted into slots automatically; warn
+  when a new week is uploaded with last week's as-of date.
 - **History across weeks:** keep each week's output to show how the forecast moves over time.
 - **Run the data checks in the warehouse** as dbt tests, with CI running the test suites on every push.

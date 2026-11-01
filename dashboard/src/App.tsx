@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { auditTable, auditView } from "./auditView";
 import { Banner } from "./Banner";
@@ -15,6 +15,9 @@ import {
 } from "./forecast";
 import { Sidebar, type Tab } from "./Sidebar";
 import type { Deal } from "./types";
+import { UpdateDialog } from "./UpdateDialog";
+import { ServerDown, getStatus, undoUpdate, type UpdateStatus } from "./updateApi";
+import { SERVER_DOWN, undoView } from "./uploadView";
 import { WhatChanged } from "./WhatChanged";
 import { whatChangedView } from "./whatChangedView";
 
@@ -36,6 +39,23 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const closePanel = useCallback(() => setSelectedId(null), []);
+  // Weekly update (SPEC 8). If the update server isn't running, status stays null:
+  // the dashboard works as usual and the dialog explains how to start the server.
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  useEffect(() => {
+    getStatus().then(setUpdateStatus).catch(() => setUpdateStatus(null));
+  }, [updateOpen]);
+  const goBack = async () => {
+    const message = "Go back to last week's data? This week's update is removed from the dashboard.";
+    if (!window.confirm(message)) return;
+    try {
+      await undoUpdate();
+      window.location.reload();
+    } catch (e) {
+      window.alert(e instanceof ServerDown ? SERVER_DOWN : (e as Error).message);
+    }
+  };
   // One handler for the table's and the panel's score dropdowns, so both always agree.
   const changeScore = (deal: Deal, pillar: Pillar, value: number) =>
     setScenario((s) => setScore(s, deal, pillar, value));
@@ -79,7 +99,16 @@ export function App() {
         options={filterOptions(rows)}
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
+        update={{
+          asOf: forecast.meta.as_of,
+          undo: undoView(updateStatus),
+          onOpen: () => setUpdateOpen(true),
+          onUndo: goBack,
+        }}
       />
+
+      <UpdateDialog open={updateOpen} onClose={() => setUpdateOpen(false)} status={updateStatus}
+        dashboardAsOf={forecast.meta.as_of} />
 
       <main className="main">
         {tab === "deal-room" ? (
