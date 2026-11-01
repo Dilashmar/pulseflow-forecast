@@ -10,18 +10,16 @@ interface DetailPanelProps {
   detail: DealDetail;
   onScoreChange: (deal: Deal, pillar: Pillar, value: number) => void;
   onClose: () => void;
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
   onMove: (deal: Deal, kind: "promote" | "demote") => void;
 }
 
 export function DetailPanel(props: DetailPanelProps) {
-  const { detail, onScoreChange, onClose, collapsed, onCollapsedChange, onMove } = props;
+  const { detail, onScoreChange, onClose, onMove } = props;
   const { deal } = detail;
   const name = deal.customer ?? deal.deal_id;
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  // Esc closes the panel; focus moves to it when a deal opens or the panel expands.
+  // A drawer over the table: Esc or × closes it; focus moves to it when a deal opens.
   useEffect(() => {
     // Esc closes the panel, unless a dialog (e.g. Update data) is open: Esc closes that instead.
     const onKey = (e: KeyboardEvent) => {
@@ -30,25 +28,7 @@ export function DetailPanel(props: DetailPanelProps) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  useEffect(() => { if (!collapsed) closeRef.current?.focus(); }, [deal.deal_id, collapsed]);
-
-  if (collapsed) {
-    // Thin rail: the selected deal's name, sideways. Click to expand.
-    return (
-      <aside className="detail-panel rail" aria-label={`Details for ${name} (collapsed)`}>
-        <button type="button" className="rail-button" aria-label="Expand details" title="Expand details"
-          onClick={() => onCollapsedChange(false)}>
-          «
-        </button>
-        <button type="button" className="rail-name" title={`Expand details for ${name}`} onClick={() => onCollapsedChange(false)}>
-          {name}
-        </button>
-        <button type="button" className="rail-button" aria-label="Close details" title="Close details" onClick={onClose}>
-          ×
-        </button>
-      </aside>
-    );
-  }
+  useEffect(() => { closeRef.current?.focus(); }, [deal.deal_id]);
 
   return (
     <aside className="detail-panel" aria-label={`Details for ${name}`}>
@@ -66,10 +46,6 @@ export function DetailPanel(props: DetailPanelProps) {
           <p className="detail-id">{deal.deal_id} · {deal.source}</p>
         </div>
         <div className="detail-header-actions">
-          <button type="button" className="icon-button" aria-label="Collapse details" title="Collapse details"
-            onClick={() => onCollapsedChange(true)}>
-            »
-          </button>
           <button ref={closeRef} type="button" className="icon-button" aria-label="Close details" title="Close details"
             onClick={onClose}>
             ×

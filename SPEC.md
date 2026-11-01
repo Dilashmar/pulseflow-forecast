@@ -220,8 +220,13 @@ change in the same week).
 ## 6. Dashboard
 
 Audience: CEO, CRO, CFO in a live meeting. Plain language, big numbers,
-no jargon. Every number traceable to deals.
-Header shows "Data as of 2026-10-15".
+no jargon. Every number traceable to deals. Simple first: show what the brief
+asks for and what drives a decision; details only on demand.
+
+Layout, top to bottom: the header, the banner strip (6.1) and a tab bar
+(Deal Room, What Changed, Data Hygiene & Audit Log) stay pinned; the tab's
+content scrolls below. No sidebar. Deal details open in a drawer over the
+page (Esc or × closes it), so the table is never squeezed.
 
 Money: under $1M shown as $K (e.g. $992K); $1M and over as $M with two
 decimals (e.g. $13.18M). Changes carry a sign (+$1.18M, −$100K).
@@ -250,18 +255,26 @@ brand-blue top line, the value large in a white body.
 
 ### 6.2 Tab 1: Deal Room (what-if)
 
-- Table of all active Q4 deals: Top deals first, then Longtail.
-- Columns: customer, product, sales rep, stage, annual ACV, win probability,
-  expected value, flags, VP notes.
-- Top deals: Leadership / Commercial / Contractual score dropdowns (1–4);
-  GPA, probability and expected value update live.
-- Promote (Longtail → Top, starts at 3/3/3) and Demote (Top → Longtail).
-  Warning if more than 8 Top deals.
-- "Reset to Baseline" restores pipeline results and clears all edits.
-- Filters: product and sales rep. Filters narrow the table and show a
-  filtered subtotal; the banner always shows the full company forecast.
-- Flags (past due, duplicate merged, VP override, needs review) shown as
-  colored chips. Edited rows are visibly marked.
+- Toolbar: Product and Rep filters (the brief's two), a compact search, and
+  "Reset to baseline (N changes)", shown only after a change (score edits,
+  moves, the VP override switch).
+- Two sections, each with its count and total in its heading:
+  - **Top 8 strategic deals** (VP rank order): customer, product, rep,
+    Leadership / Commercial / Contractual dropdowns (1–4), win %, expected
+    value, "To Longtail".
+  - **Forecasted Longtail** (largest expected value first; open by default,
+    can be collapsed): customer, product, rep, stage, win %, expected value,
+    "To Top 8".
+- Full customer names; long names wrap instead of widening the table. Flags
+  (past due, merged duplicate, VP override, promoted, edited…) show as small
+  labels under the name, only where they apply.
+- Promote starts at 3/3/3 (GPA 3.00 → 50%); demote returns to the stage
+  probability. Warning if more than 8 Top deals.
+- One scroll area for both sections; each section's column headings stay in
+  view while scrolling. No sideways scrolling at laptop width.
+- Filters narrow the sections and their totals; the banner always shows the
+  full company forecast.
+- GPA, annual ACV, VP notes and the calculation are in the deal drawer.
 
 ### 6.3 Tab 2: What Changed
 
