@@ -28,7 +28,7 @@ DEAL_FIELDS = [
 ]
 
 VP_FIELDS = [
-    "rank", "match_key", "customer", "product", "sales_rep",
+    "rank", "opportunity_id", "match_key", "customer", "product", "sales_rep",
     "leadership_score", "commercial_score", "contractual_score",
     "sheet_gpa", "sheet_win_probability", "vp_notes", "source_file", "source_row",
 ]
@@ -126,6 +126,7 @@ def standardize_vp(df):
 
         vp_row = {
             "rank": row.optional("Rank", _whole_number),
+            "opportunity_id": opportunity_id,
             "match_key": opportunity_id[:SALESFORCE_MATCH_KEY_LENGTH] if opportunity_id else None,
             "customer": match_field("Hospital_Shorthand_Name"),
             "product": match_field("Product"),

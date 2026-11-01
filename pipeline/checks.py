@@ -1,9 +1,9 @@
 """Data quality rules (SPEC section 4); each issue becomes an audit entry.
 
-run_checks: D1, D2 and D6-D13, plus the SPEC 4.1 missing/invalid value
+run_checks: D1-D3 and D6-D13, plus the SPEC 4.1 missing/invalid value
 issues found while reading (labelled "4.1").
-check_vp_scorecard: D4 (match VP rows to deals) and D5 (sheet vs formula).
-D3 (15/18-char IDs) is handled by match_key and logged with week-over-week.
+check_vp_scorecard: D3 for VP IDs, D4 (match VP rows to deals) and D5
+(sheet vs formula).
 Every rule is general: no deal IDs or names appear in the logic.
 
 Excluded deals are not deleted: they stay in `deals` with in_forecast=False
@@ -41,6 +41,7 @@ from pipeline.standardize import (
     HUBSPOT_COLUMNS,
     SALESFORCE,
     SALESFORCE_COLUMNS,
+    SALESFORCE_MATCH_KEY_LENGTH,
     Action,
     quarter_of,
 )
@@ -96,6 +97,7 @@ def run_checks(sf_current, sf_prior, hubspot, row_issues):
     hubspot = _remove_duplicate_rows(_as_deals(hubspot), audit, counts_in_forecast=True)
     deals = sf_current + hubspot
 
+    _check_short_ids(sf_current + prior, audit)
     _check_missing_fields(deals, audit, row_issues)
     _check_excluded(deals, audit)
     _check_cross_system_duplicates(deals, audit)
@@ -251,6 +253,23 @@ def _remove_duplicate_rows(deals, audit, counts_in_forecast):
             impact=sum((impact(v) for v in dropped), ZERO),
         ))
     return kept
+
+
+# --- D3: 15-character Salesforce IDs --------------------------------------------
+
+def _check_short_ids(salesforce_deals, audit):
+    # D3: Salesforce IDs come in 15- and 18-character forms; records are matched
+    # on the first 15 (match_key). Only week-over-week uses these, so $0.
+    for deal in salesforce_deals:
+        if len(deal["deal_id"]) == SALESFORCE_MATCH_KEY_LENGTH:
+            audit.append(AuditEntry(
+                check="D3",
+                kind=NOTE,
+                records=[_record(deal)],
+                what_was_wrong=f"15-character ID {deal['deal_id']} (other files use the 18-character form)",
+                resolution="Matched to other records on the first 15 characters",
+                impact=ZERO,
+            ))
 
 
 # --- D13: fields missing in a source ------------------------------------------
@@ -529,6 +548,19 @@ def check_vp_scorecard(vp_rows, deals, row_issues):
                 what_was_wrong="VP row has no Opportunity ID",
                 resolution=(f"Matched by name, product and rep to {deal['deal_id']} "
                             f"({deal['customer']}); scored as a Top deal"),
+                impact=stage_expected_value(deal) - top_value,
+            ))
+
+        if vp["opportunity_id"] is not None and len(vp["opportunity_id"]) < len(deal["deal_id"]):
+            # D3: the sheet's short ID only matches on the first 15 characters. Unmatched,
+            # the deal would sit in the Longtail at its stage probability.
+            audit.append(AuditEntry(
+                check="D3",
+                kind=FIX,
+                records=[_vp_record(vp), _record(deal)],
+                what_was_wrong=(f"VP sheet ID {vp['opportunity_id']} is the 15-character form of "
+                                f"{deal['deal_id']}"),
+                resolution="Matched on the first 15 characters; scored as a Top deal",
                 impact=stage_expected_value(deal) - top_value,
             ))
 

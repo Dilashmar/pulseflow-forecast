@@ -20,6 +20,9 @@ STAGE_PROBABILITIES = {
     "Closed Lost": Decimal("0.00"),
 }
 
+# Stage order for week-over-week stage moves (SPEC 5): right = advanced, left = regressed.
+STAGE_ORDER = ["Introduction", "Technical Validation", "Business Approval", "Contract Negotiations"]
+
 # Product -> product line for the Longtail split (SPEC 3.4). A product not listed
 # here is counted under "Other" and flagged.
 PRODUCT_LINES = {

@@ -10,6 +10,7 @@ from pipeline.checks import check_vp_scorecard, run_checks, update_past_due_at_r
 from pipeline.forecast import Totals, build_forecast
 from pipeline.load import load_hubspot, load_salesforce, load_vp_scorecard
 from pipeline.standardize import standardize_hubspot, standardize_salesforce, standardize_vp
+from pipeline.week_over_week import WeekOverWeek, compare_weeks
 
 
 @dataclass
@@ -19,6 +20,7 @@ class PipelineResult:
     audit: list             # AuditEntry for every data issue
     totals: Totals          # formula (default)
     totals_vp: Totals       # VP override applied
+    week_over_week: WeekOverWeek
 
 
 def run_pipeline(data_dir) -> PipelineResult:
@@ -34,8 +36,9 @@ def run_pipeline(data_dir) -> PipelineResult:
     checked = run_checks(sf_current, sf_prior, hubspot, row_issues)
     top = check_vp_scorecard(vp_rows, checked.deals, row_issues)
     forecast = build_forecast(checked.deals, top.matches)
+    week_over_week = compare_weeks(forecast.deals, checked.prior, row_issues)
 
-    audit = checked.audit + top.audit
+    audit = checked.audit + top.audit + week_over_week.audit
     update_past_due_at_risk(audit, forecast.deals)
     return PipelineResult(
         deals=forecast.deals,
@@ -43,4 +46,5 @@ def run_pipeline(data_dir) -> PipelineResult:
         audit=audit,
         totals=forecast.totals,
         totals_vp=forecast.totals_vp,
+        week_over_week=week_over_week,
     )
