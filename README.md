@@ -1,114 +1,116 @@
 # PulseFlow Q4-2026 Forecast
 
-A Python pipeline cleans the four weekly sales exports (Salesforce this week and last week, the VP's
-Top-deal scorecard, and the CareBridge HubSpot export), works out the Q4 forecast, and logs every data
-problem it fixes. A dashboard shows the result for the Monday forecast meeting.
+Replaces the Monday spreadsheet drill. A Python pipeline cleans the four weekly exports (Salesforce this
+week and last week, the VP's Top-deal scorecard, the CareBridge HubSpot export), works out the Q4
+forecast and logs every data problem it fixed. A dashboard shows the result for the Monday meeting.
 
-**This week (as of 2026-10-15):** forecast **$13.18M** against the **$12M** target: **+$1.18M (109.9%)**.
+**This week (data as of 2026-10-15):** $13.18M expected against the $12M board target, **+$1.18M (109.9%)**.
 
 ## Quick start
 
-Tested with Python 3.14 and Node 23.
+**You need:** Git, Python 3.11 or newer (tested on 3.14) and Node.js 18 or newer (tested on 23).
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+git clone https://github.com/Dilashmar/pulseflow-forecast.git
+cd pulseflow-forecast
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-(cd dashboard && npm install)
-
-python pipeline/run.py --data data/raw     # writes output/*.json and prints the totals
-pytest                                     # pipeline tests
-(cd dashboard && npm test)                 # dashboard tests (Vitest)
-(cd dashboard && npm run dev)              # dashboard at http://localhost:5173
-.venv/bin/uvicorn server.app:app --port 8000   # update server, for Update data (second terminal)
+cd dashboard && npm install && npm run dev
 ```
 
-## Running on a new week's data
-
-**From the dashboard** (dashboard and update server both running): click **Upload** at the top
-right, drop the new files in their slots (empty slots reuse last run's files), type the as-of date
-(YYYY-MM-DD), then **Check files** → **Apply update**. **Undo**, next to it, goes back to last week's data.
-
-**From the command line**, when only the Salesforce export is new:
+Open **http://localhost:5173**. This week's results are already in the repo, so the dashboard opens
+straight away. To load new weeks from the dashboard, also start the update server in a second terminal,
+from the project folder:
 
 ```bash
-python pipeline/run.py --current week_2_update.csv --as-of 2026-10-22
+.venv/bin/uvicorn server.app:app --port 8000      # Windows: .venv\Scripts\uvicorn server.app:app --port 8000
 ```
 
-The new file is this week's Salesforce export. Last week's is used as the prior week, and the VP
-scorecard and HubSpot files carry over from the last run. Every run keeps a copy of its four input files
-in `output/last_inputs/`, so this works however many weeks you run in a row.
+## Data bugs caught
 
-**All four files new:** put them in a folder (e.g. `data/2026-10-22/`) under the same names as in
-`data/raw/`, with last week's `1_sfdc_pipeline_current.csv` as this week's
-`2_sfdc_pipeline_prior_week.csv`, then run `python pipeline/run.py --data data/2026-10-22 --as-of 2026-10-22`.
-Never edit the files in `data/raw/`.
+Every fix is logged in `output/audit_log.json` and shown on the dashboard's **Data Hygiene & Audit Log** tab.
 
-Then:
-- **Check the first line:** it shows the as-of date and where it came from. Without `--as-of`, the date
-  comes from `pipeline/config.py`.
-- **Warning about the prior-week file** (`--data` only): it isn't last run's current file, so
-  week-over-week may compare the wrong weeks. Check the rename.
-- **Error naming a file and column:** a file is missing a column or can't be read. Nothing is written,
-  and last week's output stays as it was.
-- **Refresh the dashboard.** To keep this week's result, commit `output/`.
+| Bug | Example | What the pipeline did | Effect if left unfixed |
+|---|---|---|---|
+| VP scorecard rows with no deal ID | Ironwood, Borealis, Starlight, Halcyon | Matched on customer name, product and rep | Forecast $1.38M too high |
+| Deals outside Q4 | Timberline closes in Q1-2027 | Left out of the Q4 forecast | $838K too high |
+| VP scorecard uses short 15-character IDs | 4 Top deals | Matched on the first 15 characters | $600K too high |
+| Exact duplicate rows | Cascadia Crest, rows 17 and 18 | Kept one copy | $512K too high |
+| HubSpot amounts billed monthly | $15,000/month for Aethelgard Post-Acute | Converted to annual (× 12) | $492K too **low** |
+| Closed Lost deals still carrying a probability | Coral Reef at 40% | Counted as $0 | $303K too high |
+| Same deal listed twice with different values | Caledonia, rows 10 and 11 | Kept the latest version | $240K too high |
+| Short IDs in last week's Salesforce file | 6 deals | Matched on the first 15 characters | None (affects What Changed only) |
+| Columns missing from HubSpot | No Region, Created Date or Days in Stage | Left blank; nothing invented | None |
 
-The tests keep passing on new weeks: they use frozen copies of the 2026-10-15 files. One dashboard test
-also checks the new week's output, confirming the dashboard and the pipeline give the same totals.
-At a quarter change, update `FORECAST_QUARTER` (and `BOARD_TARGET` if needed) in `pipeline/config.py`.
-
-## How it works
-
-`load` reads the four files and checks the columns → `standardize` maps each source to the same deal
-fields → `checks` applies the data rules D1–D14 and writes the audit log → `forecast` does all the
-forecast math → `week_over_week` compares this week's Salesforce file with last week's → `run` writes
-`output/forecast.json`, `audit_log.json` and `week_over_week.json`.
-
-The dashboard (`dashboard/`, React) reads those three files. Its what-if math (`forecast.ts`) mirrors
-`pipeline/forecast.py`, and a parity test checks that both give the same totals to the cent.
-Full rules are in `SPEC.md`.
-
-## Data issues found
-
-From `output/audit_log.json`. **+** = the forecast would have been that much too high without the fix;
-**−** = too low.
-
-| Rule | Issue | Resolution | $ impact |
-|---|---|---|---:|
-| D1 | 2 rows copied exactly | Kept one copy | +$512,000 |
-| D2 | Caledonia listed twice with different values | Kept the most recent version (see below) | +$240,000 |
-| D3 | 6 IDs in last week's export and 4 in the VP scorecard use the short 15-character form | Matched on the first 15 characters | +$600,000 (VP scorecard matches) |
-| D4 | 4 VP scorecard rows with no deal ID | Matched by customer name, product and rep | +$1,380,000 |
-| D5 | VP's win probability differs from the formula (Ironwood) | Judgment call (below) | $550,000 difference |
-| D6 | Same deal in Salesforce and HubSpot (Aethelgard Post-Acute Care) | Judgment call (below) | +$144,000 |
-| D7 | 7 HubSpot deals billed monthly | Converted to annual (× 12) | −$491,700 |
-| D8 | 2 Closed Lost deals still carrying a probability | Counted as $0, left out | +$303,200 |
-| D9 | 4 open deals past their close date | Judgment call (below) | $812,000 at risk |
-| D10 | 5 deals outside Q4-2026 | Left out | +$838,000 |
-| D13 | HubSpot has no Region, Created Date or Days in Stage | Left blank, nothing invented | $0 |
-
-D11, D12 and D14 found nothing this week.
+The three judgment calls below are also logged. Checks for non-standard stage probabilities, quarters
+that don't match the close date, and unreadable files ran and found nothing this week.
 
 ## Judgment calls and assumptions
 
-- **VP override (Ironwood):** the formula (50%) is the default so every Top deal is scored the same way;
-  a dashboard toggle applies the VP's 75% (+$550K). *Confirmed with Dan.*
-- **Cross-system duplicate (Aethelgard Post-Acute Care):** counted once, from HubSpot, which holds the
-  CareBridge deals. The Salesforce copy isn't shown as a new deal. *Confirmed with Dan.*
-- **Past-due deals:** kept in the forecast and flagged, with $812K shown as at risk.
-  *Confirmed with Dan.*
-- **Most recent version of a deal (D2):** the row with the lowest Days_In_Stage is treated as the latest.
-  Days_In_Stage isn't defined in the brief, and in this data it doesn't reset when other deals change
-  stage (e.g., Alabaster, Solaris), so this is an assumption. Caledonia confirms it here: last week it
-  was in Business Approval at 12 days; this week one row says Business Approval at 19 days (12 + 7, not
-  updated) and the other says Contract Negotiations at $550K with 2 days (the update).
-- **CareBridge split by product:** the CareBridge product counts as "Acquired CareBridge"; PulseOR,
-  BedFlow and InfusionIQ as "Core Salesforce", whichever system the deal is in.
-- **More than 8 Top deals:** allowed in the dashboard's what-if view, with a warning.
+- **VP override (Ironwood):** the VP's sheet says 75%; the scoring formula says 50%. The formula is the
+  default so every Top deal is scored the same way; the dashboard's **VP overrides** switch applies the
+  VP's number (+$550K). *Confirmed with Dan.*
+- **Same deal in Salesforce and HubSpot (Aethelgard Post-Acute Care):** counted once, from HubSpot,
+  which holds the CareBridge deals; otherwise $144K would be counted twice. *Confirmed with Dan.*
+- **Past-due deals (4):** kept in the forecast and flagged, with $812K shown as at risk. *Confirmed with Dan.*
+- **Latest version of a deal:** the row with the fewest days in its stage is treated as the latest.
+  The brief doesn't define Days_In_Stage, but Caledonia supports it: 12 days last week, so the row at 19
+  is stale and the row at 2 (Contract Negotiations, $550K) is the update.
+- **CareBridge split:** by product (CareBridge = Acquired CareBridge; PulseOR, BedFlow and InfusionIQ =
+  Core Salesforce), whichever system the deal is in.
+- **What Changed** values changes at stage probability, because there are no last-week VP scores, so
+  Top 8 deals there won't match their VP-scored forecast.
+- **More than 8 Top deals** is allowed in the what-if view, with a warning.
+
+## Every Monday
+
+1. Start the dashboard and the update server (see Quick start).
+2. Click **Upload** (top right). Drop the new files into their slots: usually just **This week's
+   Salesforce**. Empty slots reuse last week's files, and last week's Salesforce is picked automatically.
+3. Type the export date (YYYY-MM-DD), click **Check files**, then **Apply update**. The dashboard reloads
+   with the new numbers.
+4. Something looks wrong? **Undo** (next to Upload) goes back to last week's data.
+
+Prefer the command line? `python pipeline/run.py --current week_2_update.csv --as-of 2026-10-22`
+does the same with one new Salesforce file. To keep a week's result, commit the `output/` folder.
+
+## What you're looking at
+
+- **Banner:** total expected Q4 sales, the variance to the $12M target, Top 8 strategic deals (with the
+  VP overrides switch) and the Forecasted Longtail (Core and CareBridge).
+- **Deal Room:** the Top 8 and Longtail deals. Change a Top deal's scores, or move a deal between the two
+  with one click; the banner updates instantly. **Reset to baseline** undoes your changes.
+- **What Changed:** this week against last week by category. Click a column to see its deals.
+- **Data Hygiene & Audit Log:** every issue the pipeline caught, by source file and type.
+- Click any customer to see its details.
+
+## How it works and tests
+
+`pipeline/` reads the four files, checks the columns, applies the data rules (full list in `SPEC.md`),
+works out the forecast and the week-over-week changes, and writes three JSON files to `output/`. The
+dashboard (`dashboard/`, React) reads them; its what-if math mirrors the pipeline's, and a test checks
+both give the same totals to the cent. `server/` is the small local server behind Upload.
+Run the tests with `pytest` and `cd dashboard && npm test`.
+
+## How I used AI
+
+I built this with Claude Code as a pair programmer: I wrote the spec and the business rules, reviewed
+every step, and made the judgment calls. Tests were written before the code, and every total was checked
+against numbers worked out by hand from the raw files.
 
 ## Next steps
 
-- **Pull data directly** from the Salesforce and HubSpot APIs on a Monday schedule, instead of file drops.
-- **Smarter upload:** drop all files in one place and have them sorted into slots automatically; warn
-  when a new week is uploaded with last week's as-of date.
-- **History across weeks:** keep each week's output to show how the forecast moves over time.
-- **Run the data checks in the warehouse** as dbt tests, with CI running the test suites on every push.
+- Pull the data straight from the Salesforce and HubSpot APIs instead of file exports.
+- Keep each week's results to show how the forecast moves over time.
+- Run the data checks automatically on every change (CI).
+
+## Troubleshooting
+
+- **"The update server isn't running":** start it (Quick start, second command).
+- **"command not found" or "No module named …":** the project's Python isn't active. Run
+  `source .venv/bin/activate` (or `conda deactivate` first if you use Anaconda), or use the
+  `.venv/bin/…` path as shown above.
+- **"Address already in use" for the update server:** another copy is already running on port 8000;
+  close it (the dashboard expects the server on 8000).
+- **Upload says "This looks like a HubSpot export":** the file is in the wrong slot; move it.
